@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Copyright (c) 2010-2011, The MiCode Open Source Community (www.micode.net)
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory>
+        <ListPreference
+            android:key="pref_key_record_type"
+            android:title="@string/pref_title_record_type"
+            android:summary="默认采样wav格式"
+            android:entries="@array/prefEntries_recordType"
+            android:entryValues="@array/prefValues_recordType"
+            android:dialogTitle="@string/prefDialogTitle_recordType"
+            android:defaultValue="@string/prefDefault_recordType" />
+
+        <ListPreference
+            android:key="pref_key_sample_rate"
+            android:title="录音采样率"
+            android:summary="选择合适的采样率"
+            android:entries="@array/sampleRate_entries"
+            android:entryValues="@array/sampleRate_values"
+            android:dialogTitle="please select sampling rate"
+            android:defaultValue="8000"
+            />
+
+    </PreferenceCategory>
+    <PreferenceCategory>
+
+        <ListPreference
+            android:key="pref_key_filter_type"
+            android:title="滤波器类型"
+            android:summary="巴特沃斯、切比雪夫"
+            android:entries="@array/filter_types"
+            android:entryValues="@array/filter_type_values"
+            android:dialogTitle="选择滤波器类型"
+            android:defaultValue="0"/>
+
+        <ListPreference
+            android:key="pref_key_filter_category"
+            android:title="滤波器种类"
+            android:summary="低通、高通、带通、带阻"
+            android:entries="@array/filter_categories"
+            android:entryValues="@array/filter_category_values"
+            android:dialogTitle="选择何种滤波器"
+            android:defaultValue="0"/>
+
+
+
+        <EditTextPreference
+            android:key="pref_key_filter_pass_freq"
+            android:title="通带截止频率"
+            android:summary="低通和高通只需要设置这个"
+            android:dialogTitle="设置通带截止频率"
+            android:defaultValue="800"/>
+
+        <EditTextPreference
+            android:key="pref_key_filter_stop_freq"
+            android:title="阻带截止频率"
+            android:summary="带通和带阻设置"
+            android:dialogTitle="设置阻带截止频率"
+            android:defaultValue="1600"/>
+
+        <EditTextPreference
+            android:key="pref_key_filter_pass_wave"
+            android:title="通带最大衰减(db)"
+            android:dialogTitle="设置通带最大衰减(db)"
+            android:defaultValue="0.5"/>
+
+        <EditTextPreference
+            android:key="pref_key_filter_stop_decrease"
+            android:title="阻带最小衰减(db)"
+            android:dialogTitle="设置阻带最小衰减(db)"
+            android:defaultValue="50"/>
+
+    </PreferenceCategory>
+</PreferenceScreen>

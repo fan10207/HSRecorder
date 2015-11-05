@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/line"
+        android:layout_width="fill_parent"
+        android:layout_height="50dp"
+        android:visibility="gone"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/bt_selectall"
+            android:layout_width="80dp"
+            android:layout_height="fill_parent"
+            android:text="全选" />
+
+        <Button
+            android:id="@+id/bt_disselectall"
+            android:layout_width="80dp"
+            android:layout_height="fill_parent"
+            android:text="反选" />
+
+
+        <Button
+            android:id="@+id/bt_cancelSelectall"
+            android:layout_width="100dp"
+            android:layout_height="fill_parent"
+            android:text="取消选择" />
+
+        <Button
+            android:id="@+id/delete_items"
+            android:layout_width="match_parent"
+            android:layout_height="fill_parent"
+            android:text="删除" />
+
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/audio_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:divider="@color/white"
+        android:dividerHeight="1dp">
+
+    </ListView>
+</LinearLayout>

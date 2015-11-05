@@ -1,0 +1,219 @@
+<android.support.v4.widget.DrawerLayout
+    android:id="@+id/drawer_layout"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    >
+
+    <!-- The main content view -->
+    <!-- main content must be the first element of DrawerLayout
+    because it will be drawn first and drawer must be on top of it -->
+    <LinearLayout
+        android:id="@+id/layout"
+        android:layout_width="fill_parent"
+        android:layout_height="0dip"
+        android:layout_weight="1"
+        android:background="@drawable/background_03"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="left|top"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="25dp"
+                    android:textColor="@color/black"
+                    android:text="文件名：" />
+
+                <LinearLayout
+                    android:layout_width="0px"
+                    android:layout_height="0px"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true" />
+
+                <com.lippi.hsrecorder.utils.RecordNameEditText
+                    android:id="@+id/file_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="25dip"
+                    android:background="#00000000"
+                    android:selectAllOnFocus="true"
+                    android:textColor="@color/black"
+                    android:singleLine="true" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/time_calculator"
+            android:layout_width="fill_parent"
+            android:layout_height="0dip"
+            android:layout_weight="2"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingTop="40dip">
+
+        </LinearLayout>
+
+        <Spinner
+            android:id="@+id/spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+        </Spinner>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dip"
+            android:layout_weight="8"
+            android:orientation="vertical">
+
+            <com.lippi.hsrecorder.utils.ChartView
+                android:id="@+id/visualizer_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="0dip"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/vumeter_layout"
+                android:layout_width="fill_parent"
+                android:layout_height="0dip"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal" />
+
+            <LinearLayout
+                android:id="@+id/play_seek_bar_layout"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/starttime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="10dip"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:textColor="@color/black" />
+
+                <SeekBar
+                    android:id="@+id/play_seek_bar"
+                    android:layout_width="0dip"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:paddingLeft="10dip"
+                    android:paddingRight="10dip" />
+
+
+                <TextView
+                    android:id="@+id/totaltime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingRight="10dip"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:textColor="@color/black" />
+            </LinearLayout>
+
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/button_layout"
+            android:layout_width="fill_parent"
+            android:layout_height="80dp"
+            android:background="@drawable/key_background"
+            android:gravity="center"
+            android:weightSum="2">
+
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/newButton"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_new" />
+
+
+                <ImageButton
+                    android:id="@+id/recordButton"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/record_normal" />
+
+                <ImageButton
+                    android:id="@+id/stopButton"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_stop"
+                    android:visibility="gone" />
+
+                <ImageButton
+                    android:id="@+id/playButton"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_play"
+                    android:visibility="gone" />
+
+                <ImageButton
+                    android:id="@+id/pauseButton"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_pause"
+                    android:visibility="gone" />
+
+                <ImageButton
+                    android:id="@+id/deleteButton"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_delete" />
+
+                    <CheckBox
+                        android:id="@+id/record_play_switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        style="@style/custom_checkbox_style"
+                        android:text="试听"
+                        android:textColor="@color/black"
+                        android:checked="false"
+                        />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+
+    <!-- The navigation drawer -->
+    <ListView
+        android:id="@+id/navdrawer"
+        android:layout_width="@dimen/navdrawer_width"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="#F0DAD2"
+        android:divider="@drawable/divider"
+        android:drawSelectorOnTop="false">
+    </ListView>
+
+</android.support.v4.widget.DrawerLayout>

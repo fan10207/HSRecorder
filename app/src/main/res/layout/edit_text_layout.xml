@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:whatever="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <com.andreabaccega.widget.FormEditText
+        android:id="@+id/edit_text"
+        whatever:testType="numeric"
+        whatever:emptyErrorString="@string/freq_cannot_be_empty"
+        whatever:testErrorString="@string/your_input_is_ugly"
+        android:textSize="25sp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/text_input_normal"
+
+        />
+</LinearLayout>

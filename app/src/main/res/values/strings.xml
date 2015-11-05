@@ -1,0 +1,133 @@
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name">HSRecorder</string>
+    <!-- Do not translate. Format of the timer that shows how much has been recorded so far -->
+    <string name="timer_format"><xliff:g id="format">%02d</xliff:g>:<xliff:g id="format">%02d</xliff:g></string>
+    <!-- Screen title before and during recording -->
+    <!-- Screen title after recording -->
+    <!-- Screen title while playing back a recording -->
+    <!-- Label shown during recording -->
+    <string name="recording">Recording</string>
+    <!-- Label shown when the recording is stopped for a reason other than the user stopping it (e.g. the sd card was removed) -->
+    <string name="recording_stopped">Recording stopped</string>
+    <!-- label shown when there is not enough space to record something -->
+    <string name="storage_is_full">Storage is full</string>
+    <!-- label shown when the recording has reached maximum allowed file capacity -->
+    <string name="max_length_reached">Maximum length reached</string>
+    <!-- label shown when there is no sd card available to record to -->
+    <string name="insert_sd_card">SD card is required</string>
+    <!-- label shown when there is more than 1 minute but less than 9 minutes of space left to record -->
+    <!-- label shown when there is less than 1 minute of space left to record -->
+
+    <!-- button to accept the current recording and return it to the caller -->
+    <!-- button to discard the current recording and return to the caller -->
+    <!-- acknowlegement button in a number of dialogs -->
+    <string name="button_ok">OK</string>
+    <!-- label shown before the user has recorded anything -->
+
+    <!-- the name under which recordings will be visible in the media database is formatted like this -->
+    <string name="audio_db_title_format"><xliff:g id="format">yyyy-MM-dd HH:mm:ss</xliff:g></string>
+    <!-- all recordings will show up in the media database with this 'artist' name -->
+    <string name="audio_db_artist_name">Your recordings</string>
+    <!-- all recordings will show up in the media database with this 'album' name -->
+    <string name="audio_db_album_name">Audio recordings</string>
+    <!-- all recordings will show up in the media database in a playlist with this name -->
+    <string name="audio_db_playlist_name">My recordings</string>
+    <!-- shown as the message in a dialog when an error occured because of an error accessing the sd card -->
+    <string name="error_sdcard_access">Unable to access external or internal storage</string>
+    <!-- shown as the message in a dialog when the app encountered an unspecified internal error -->
+    <string name="error_app_internal">Internal application error</string>
+    <!-- shown as the message in a dialog when the recording could not be added to the media database -->
+    <string name="error_mediadb_new_record">Unable to save recorded audio</string>
+
+    <!-- add for libra begin -->
+    <string name="default_record_name">untitled record</string>
+    <string name="menu_view_record_list">View record list</string>
+    <string name="menu_setting">Settings</string>
+    <string name="delete_dialog_title">Do you want to delete current record?</string>
+    <string name="overwrite_dialog_title">%s has already existed. Do you want to overwrite it?</string>
+    <string name="preferences_title">Settings</string>
+    <string name="pref_title_record_type">record type</string>
+    <string name="prefDialogTitle_recordType">Please select file type</string>
+    <string name="prefDefault_recordType">audio/x-wav</string>
+    <string name="pref_title_enable_high_quality">Enable high quality</string>
+    <string name="pref_summary_enable_high_quality">The audio file with high quality can be larger</string>
+    <string name="pref_title_enable_sound_effect">Enable sound effect</string>
+    <string name="pref_summary_enable_sound_effect">Playing sound effect when the state is changed</string>
+    <string name="notification_recording">Recording...</string>
+    <string name="notification_stopped">Recording is stopped</string>
+    <string name="notification_warning">Low storage(less than %d minutes)...</string>
+    <string name="sd_card_not_available">SD card is not available</string>
+    <string name="open_file_explorer">Open file explorer</string>
+    <string name="alert_message_delete_record">Do you want to delete selected record?</string>
+    <string name="user_outer_mic">use a outer mic</string>
+    <string name="pref_summary_use_outer_mic">use outer mic</string>
+    <string name="delete_file">鍒犻櫎</string>
+    <string name="share_file">鍒嗕韩</string>
+
+    <string name="favorite">Favorite</string>
+    <string name="error_no_metadata">Unable to retrieve metadata.</string>
+    <string name="browse_genres">Genres</string>
+    <string name="browse_genre_subtitle">Songs by genre</string>
+    <string name="browse_musics_by_genre_subtitle">%1$s songs</string>
+    <string name="random_queue_title">Random music</string>
+    <string name="error_no_connection">Cannot connect to server. Please, check your Internet connectivity.</string>
+    <string name="error_loading_media">Error Loading Media</string>
+    <string name="casting_to_device">Casting to %1$s</string>
+    <string name="currently_playing_song">Song currently playing</string>
+    <string name="currently_playing_artist">Artist of currently playing song</string>
+    <string name="currently_playing_extra_info">Extra info for currently playing song</string>
+    <string name="play_item">Play item</string>
+    <string name="play_pause">play or pause</string>
+    <string name="skip_next">skip to next</string>
+    <string name="skip_prev">skip to previous</string>
+    <string name="touch_to_cast">Touch to Cast</string>
+    <!-- Use the default receiver. To customize a styled media receiver, you can use
+         the css and images under <project-root>/docs/cast_styled_receiver -->
+    <string name="cast_application_id">CC1AD845</string>
+    <string name="home_title">Home</string>
+    <string name="related_content_header">You may also like</string>
+    <string name="action_listen">Listen</string>
+    <string name="open_content_drawer">Open the main menu</string>
+    <string name="close_content_drawer">Close the main menu</string>
+    <string name="placeholder_message">This is a placeholder for your application code.</string>
+    <string name="drawer_allmusic_title">All Music</string>
+    <string name="drawer_playlists_title">Playlists</string>
+    <string name="now_playing">Now Playing</string>
+    <string name="background_image_str">Background image for album art</string>
+    <string name="no_search_results">No search results.</string>
+    <string name="loading">Loading...</string>
+    <string name="media_route_menu_title">Play</string>
+    <string name="label_previous">previous</string>
+    <string name="label_next">next</string>
+    <string name="label_pause">pause</string>
+    <string name="label_play">play</string>
+    <string name="drawer_open">open</string>
+    <string name="drawer_close">close</string>
+    <string name="freq_cannot_be_empty">can not be empty</string>
+    <string name="your_input_is_ugly">invalid input</string>
+
+    <string-array name="prefEntries_recordType">
+        <item>wav</item>
+    </string-array>
+
+    <string-array translatable="false" name="prefValues_recordType">
+        <item>audio/x-wav</item>
+    </string-array>
+
+    <string-array name="sampleRate_entries">
+        <item>8000Hz</item>
+        <item>11025Hz</item>
+        <item>16000Hz</item>
+        <item>22050Hz</item>
+        <item>44100Hz</item>
+    </string-array>
+
+    <string-array  name="sampleRate_values">
+        <item>8000</item>
+        <item>11025</item>
+        <item>16000</item>
+        <item>22050</item>
+        <item>44100</item>
+    </string-array>
+
+</resources>

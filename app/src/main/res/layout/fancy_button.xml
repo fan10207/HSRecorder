@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:fancy="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <mehdi.sakout.fancybuttons.FancyButton
+        android:id="@+id/button_positive"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="10dp"
+        android:paddingTop="10dp"
+        fancy:borderColor="#FFFFFF"
+        fancy:borderWidth="1dp"
+        fancy:defaultColor="@color/pink"
+        fancy:focusColor="#F0DADF"
+        fancy:radius="30dp"
+        fancy:text="确定"
+        fancy:textSize="25sp"
+        fancy:textColor="@color/black_overlay" />
+</LinearLayout>
