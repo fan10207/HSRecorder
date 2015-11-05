@@ -1,7 +1,6 @@
 package com.lippi.hsrecorder.ui;
 
 
-import android.app.ActionBar;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -19,8 +18,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBar;
 import android.text.TextUtils;
-import android.util.FloatMath;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -64,14 +63,14 @@ import com.lippi.hsrecorder.utils.helper.LogHelper;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import roboguice.activity.RoboActivity;
+import roboguice.activity.RoboActionBarActivity;
 import roboguice.inject.InjectView;
 
 
 /**
  * Created by lippi on 14-12-3.
  */
-public class MainActivity extends RoboActivity implements View.OnClickListener, AudioRecorder.OnStateChangedListener {
+public class MainActivity extends RoboActionBarActivity implements View.OnClickListener, AudioRecorder.OnStateChangedListener {
     private static final String TAG = LogHelper.makeLogTag(MainActivity.class);
 
     private static final int SEEK_BAR_MAX = 100000;
@@ -185,14 +184,11 @@ public class MainActivity extends RoboActivity implements View.OnClickListener, 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.drawer_layout);
-        ActionBar ab = getActionBar();
+        ActionBar ab = getSupportActionBar();
         ab.setDisplayHomeAsUpEnabled(true);
         ab.setHomeButtonEnabled(true);
         initDrawer();
-//        layout = (LinearLayout) this.findViewById(R.id.layout);
-        setBackground(layout, R.drawable.background_03);
-
-//        chartView = (ChartView) findViewById(R.id.visualizer_view);
+//        setBackground(layout, R.drawable.background_03);
         chartView.setOnTouchListener(new TwoFingerTouchListener());
         mAudioRecorder = new AudioRecorder(mSampleRate, /*recordingBuffer*/ chartView);
         mAudioRecorder.setOnStateChangedListener(this);
