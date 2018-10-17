@@ -2,13 +2,13 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 23
-    buildToolsVersion '23.0.2'
+    buildToolsVersion '25.0.0'
 
     dexOptions {
         //disabled pre-dexing on third part library
         preDexLibraries = false
         incremental true
-        javaMaxHeapSize "4096M"
+        javaMaxHeapSize "1024M"
     }
     defaultConfig {
         applicationId "com.lippi.hsrecorder"
@@ -18,7 +18,7 @@ android {
         versionName '1.6'
 
         // dex突破65535的限制
-        multiDexEnabled true
+        multiDexEnabled false
     }
 
     sourceSets {
@@ -80,7 +80,7 @@ android {
             // dev utilizes minSDKVersion = 21 to allow the Android gradle plugin
             // to pre-dex each module and produce an APK that can be tested on
             // Android Lollipop without time consuming dex merging processes.
-            minSdkVersion 21
+            minSdkVersion 18
         }
         prod {
             // The actual minSdkVersion for the application.
@@ -144,4 +144,13 @@ dependencies {
     compile('com.mikepenz:materialdrawer:4.4.4@aar') {
         transitive = true
     }
+
+    compile 'com.mikepenz:google-material-typeface:1.2.0.1@aar'
+    compile 'com.mikepenz:fontawesome-typeface:4.4.0.1@aar'
+    compile 'com.mikepenz:octicons-typeface:3.0.0.1@aar'
+
+//    compile 'com.astuetz:pagerslidingtabstrip:1.0.1'
+    compile 'com.romainpiel.shimmer:library:1.4.0@aar'
+    compile 'net.frakbot:jumpingbeans:1.3.0'
+    compile 'com.makeramen:roundedimageview:2.2.1'
 }

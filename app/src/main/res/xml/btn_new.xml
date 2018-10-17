@@ -19,13 +19,13 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:state_enabled="false"
-        android:drawable="@drawable/new_pressed" />
+        android:drawable="@mipmap/new_pressed" />
     <item
         android:state_focused="true"
-        android:drawable="@drawable/new_pressed" />
+        android:drawable="@mipmap/new_pressed" />
     <item
         android:state_pressed="true"
-        android:drawable="@drawable/new_pressed" />
+        android:drawable="@mipmap/new_pressed" />
     <item
-        android:drawable="@drawable/new_pressed" />
+        android:drawable="@mipmap/new_pressed" />
 </selector>

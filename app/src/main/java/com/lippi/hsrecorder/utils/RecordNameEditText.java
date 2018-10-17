@@ -20,6 +20,7 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -87,10 +88,15 @@ public class RecordNameEditText extends EditText {
         if (!englishOnly) {
             setText(getProperFileName(mContext.getString(R.string.default_record_name)));
         } else {
-            SimpleDateFormat dataFormat = new SimpleDateFormat("MM月dd日HH点mm分ss秒", Locale.CHINA);
-            setText(getProperFileName("rec_" + dataFormat.format(Calendar.getInstance().getTime())));
+            //SimpleDateFormat dataFormat = new SimpleDateFormat("MM月dd日HH点mm分ss秒", Locale.CHINA);
+            setText("Heart_sound");
         }
     }
+
+    public void setFileName(String name) {
+        setText(name);
+    }
+
 
     private String getProperFileName(String name) {
         String uniqueName = name;

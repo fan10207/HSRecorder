@@ -1,24 +1,29 @@
 package com.lippi.hsrecorder.ui;
 
 
+import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Fragment;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBar;
+import android.os.Message;
+import android.support.v4.view.ViewPager;
+import android.support.v7.widget.PopupMenu;
+import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -28,7 +33,6 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
@@ -36,7 +40,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -57,14 +60,43 @@ import com.lippi.hsrecorder.iirfilterdesigner.model.FilterType;
 import com.lippi.hsrecorder.utils.AudioRecorder;
 import com.lippi.hsrecorder.utils.ChartView;
 import com.lippi.hsrecorder.utils.RecordNameEditText;
-import com.lippi.hsrecorder.utils.blueeffect.Blur;
 import com.lippi.hsrecorder.utils.helper.LogHelper;
+import com.lippi.hsrecorder.utils.helper.bluetooth.BluetoothService;
+import com.lippi.hsrecorder.utils.helper.bluetooth.DeviceListActivity;
+import com.mikepenz.google_material_typeface_library.GoogleMaterial;
+import com.mikepenz.iconics.IconicsDrawable;
+import com.mikepenz.materialdrawer.AccountHeader;
+import com.mikepenz.materialdrawer.AccountHeaderBuilder;
+import com.mikepenz.materialdrawer.Drawer;
+import com.mikepenz.materialdrawer.DrawerBuilder;
+import com.mikepenz.materialdrawer.holder.StringHolder;
+import com.mikepenz.materialdrawer.model.DividerDrawerItem;
+import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
+import com.mikepenz.materialdrawer.model.ProfileDrawerItem;
+import com.mikepenz.materialdrawer.model.ProfileSettingDrawerItem;
+import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
+import com.mikepenz.materialdrawer.model.interfaces.IProfile;
+import com.mikepenz.materialdrawer.util.RecyclerViewCacheUtil;
+import com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment;
 
+import java.io.IOException;
+import java.io.Writer;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.HashSet;
 
 import roboguice.activity.RoboActionBarActivity;
 import roboguice.inject.InjectView;
+
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.D;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.DEVICE_NAME;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.MESSAGE_DEVICE_NAME;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.MESSAGE_READ;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.MESSAGE_STATE_CHANGE;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.MESSAGE_TEXT;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.MESSAGE_TOAST;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.TOAST;
+import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.mmHandler;
 
 
 /**
@@ -72,9 +104,11 @@ import roboguice.inject.InjectView;
  */
 public class MainActivity extends RoboActionBarActivity implements View.OnClickListener, AudioRecorder.OnStateChangedListener {
     private static final String TAG = LogHelper.makeLogTag(MainActivity.class);
-
+    private static final int PROFILE_SETTING = 1;
     private static final int SEEK_BAR_MAX = 100000;
     private static final String BLURRED_IMG_PATH = "blurred_image.png";
+    public static final String HEART_RATE = "heart rate";
+    public static final String HEART_SOUND_DATA = "heart sound data";
     //录音的时候接到电话被打断
     private boolean mSampleInterrupted = false;
     // Some error messages are displayed
@@ -82,7 +116,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     //播放进度条的时间格式
     private String mTimerFormat;
 
-    private int mSampleRate = 8000;
+    private int mSampleRate = 22050;
 
     private AudioRecorder mAudioRecorder;
 
@@ -92,11 +126,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 
     private int mLastButtonId;
 
-    @InjectView(R.id.drawer_layout)
-    private DrawerLayout mDrawerLayout;
-    //  左边侧栏的设置菜单
-    @InjectView(R.id.navdrawer)
-    private ListView mDrawerList;
+
     //实现抽屉效果
     private ActionBarDrawerToggle mDrawerToggle;
     private DrawerArrowDrawable drawerArrow;
@@ -128,6 +158,20 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     @InjectView(R.id.recordButton)
     private ImageButton mRecordButton;
 
+    @InjectView(R.id.edit_filename)
+    private ImageButton editFileNameButton;
+
+
+    @InjectView(R.id.ill)
+    private ImageButton ill;
+
+    @InjectView(R.id.scan_bluetooth)
+    private ImageButton scan_bluetooth;
+
+    @InjectView(R.id.record_play_switch)
+    private CheckBox record_play_switch;
+
+
     @InjectView(R.id.stopButton)
     private ImageButton mStopButton;
 
@@ -143,6 +187,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     @InjectView(R.id.file_name)
     private RecordNameEditText mFileNameEditText;
 
+
     @InjectView(R.id.time_calculator)
     private LinearLayout mTimerLayout;
 
@@ -155,11 +200,15 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     @InjectView(R.id.starttime)
     private TextView mStartTime;
 
+    @InjectView(R.id.heartRate)
+    private TextView heartRate;
+
     @InjectView(R.id.totaltime)
     private TextView mTotalTime;
 
     @InjectView(R.id.play_seek_bar)
     private SeekBar mPlaySeekBar;
+
 
     private BroadcastReceiver mSDCardMountEventReceiver = null;
 
@@ -177,277 +226,382 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     private double mPassWave = 0.5;
     private double mStopDec = 50;
     private FilterCoefficients coefficients;
-    @InjectView(R.id.layout)
-    private LinearLayout layout;
+    private Drawer result;
+    @InjectView(R.id.toolbar)
+    private Toolbar toolbar;
+    private AccountHeader header;//头像
+    private Handler resultHandler = new ResultHandler();
+    private int countNum = 0;
+
+
+    public static final int REQUEST_ENABLE_BT = 0;
+    public static final int REQUEST_CONNECT_DEVICE = 1;
+    private BluetoothAdapter mBluetoothAdapter;
+    protected Context context;
+    private SharedPreferences sharedPreferences;
+    private SharedPreferences.Editor editor;
+    protected BluetoothService mChatService = null;
+    private AppFragment mappFrament;
+    private Writer writerOne;
+    public String mConnectedDeviceName = null;
+    //protected static Handler mmHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.drawer_layout);
-        ActionBar ab = getSupportActionBar();
-        ab.setDisplayHomeAsUpEnabled(true);
-        ab.setHomeButtonEnabled(true);
-        initDrawer();
+        setContentView(R.layout.main_layout);
+
+        setSupportActionBar(toolbar);
+        chartView.setmSampleRate(mSampleRate / 2);
+
 //        setBackground(layout, R.drawable.background_03);
-        chartView.setOnTouchListener(new TwoFingerTouchListener());
-        mAudioRecorder = new AudioRecorder(mSampleRate, /*recordingBuffer*/ chartView);
+        // chartView.setOnTouchListener(new TwoFingerTouchListener());
+
+        mAudioRecorder = new AudioRecorder(mSampleRate, resultHandler, chartView);
         mAudioRecorder.setOnStateChangedListener(this);
         mSavedRecord = new HashSet<String>();
+        mappFrament=new AppFragment();
+        Context ctx = MainActivity.this;
+        sharedPreferences = ctx.getSharedPreferences("address", Context.MODE_PRIVATE);
+        editor = sharedPreferences.edit();
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        mmHandler = new MyHandler(this);
+        mChatService = new BluetoothService(context, mmHandler);
+
+
         initResourceRefs();
         registerExternalStorageListener();
         //set the  mediaplater Volume
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        // Create a few sample profile
+        // NOTE you have to define the loader logic too. See the CustomApplication for more details
+        final IProfile profile1 = new ProfileDrawerItem().withName("梅长苏").withEmail("changshu.mei@gmail.com")
+                .withIcon(R.mipmap.profile2).withIdentifier(100);
+        final IProfile profile2 = new ProfileDrawerItem().withName("靖王")
+                .withEmail("king@gmail.com").withIcon(R.mipmap.profile3).withIdentifier(101);
+
+
+        // Create the AccountHeader
+        header = new AccountHeaderBuilder()
+                .withActivity(this)
+                .withHeaderBackground(R.mipmap.header)
+                .addProfiles(
+                        profile1,
+                        profile2,
+                        //don't ask but google uses 14dp for the add account icon in gmail but 20dp for the normal icons (like manage account)
+                        new ProfileSettingDrawerItem().withName("添加账户")
+                                .withIcon(new IconicsDrawable(this, GoogleMaterial.Icon.gmd_add).actionBar().paddingDp(5)
+                                        .colorRes(R.color.material_drawer_primary_text)).withIdentifier(PROFILE_SETTING),
+                        new ProfileSettingDrawerItem().withName("管理账户").withIcon(GoogleMaterial.Icon.gmd_settings)
+                                .withIdentifier(2)
+                )
+                .withOnAccountHeaderListener(new AccountHeader.OnAccountHeaderListener() {
+                    @Override
+                    public boolean onProfileChanged(View view, IProfile profile, boolean current) {
+                        switch (profile.getIdentifier()) {
+                            case PROFILE_SETTING:
+                                int count = 100 + header.getProfiles().size() + 1;
+                                IProfile newProfile = new ProfileDrawerItem()
+                                        .withNameShown(true).withName("Batman" + count).withEmail("batman" + count + "@gmail.com")
+                                        .withIcon(R.mipmap.profile5).withIdentifier(count);
+                                if (header.getProfiles() != null) {
+                                    //we know that there are 2 setting elements. set the new profile above them ;)
+                                    header.addProfile(newProfile, header.getProfiles().size() - 2);
+                                } else {
+                                    header.addProfiles(newProfile);
+                                }
+                                break;
+                            default:
+                                Intent intent = new Intent(MainActivity.this, AudioListActivity.class);
+                                startActivity(intent);
+                                break;
+                        }
+
+                        //false if you have not consumed the event and it should close the drawer
+                        return false;
+                    }
+
+                })
+                .withSavedInstance(savedInstanceState)
+                .build();
+
+        //Create the drawer
+        result = new DrawerBuilder()
+                .withActivity(this)
+                .withToolbar(toolbar)
+                .withHasStableIds(true)
+                .withAccountHeader(header) //set the AccountHeader we created earlier for the header
+                .addDrawerItems(
+                        new PrimaryDrawerItem().withName("录音采样率").withDescription("")
+                                .withIcon(GoogleMaterial.Icon.gmd_wb_sunny).withIdentifier(1).withSelectable(true),
+                        new DividerDrawerItem(),
+                        new PrimaryDrawerItem().withName("滤波器类型").withDescription("")
+                                .withIcon(GoogleMaterial.Icon.gmd_airline_seat_legroom_normal).withIdentifier(2).withSelectable(true),
+                        new DividerDrawerItem(),
+                        new PrimaryDrawerItem().withName("通带截止频率").withDescription("")
+                                .withIcon(GoogleMaterial.Icon.gmd_wb_cloudy).withIdentifier(3).withSelectable(true),
+                        new DividerDrawerItem(),
+                        new PrimaryDrawerItem().withName("阻带截止频率").withDescription("")
+                                .withIcon(GoogleMaterial.Icon.gmd_cake).withIdentifier(4).withSelectable(true),
+                        new DividerDrawerItem(),
+                        new PrimaryDrawerItem().withName("通带最大衰减(db)").withDescription("")
+                                .withIcon(GoogleMaterial.Icon.gmd_battery_charging_full).withIdentifier(5).withSelectable(true),
+                        new DividerDrawerItem(),
+                        new PrimaryDrawerItem().withName("阻带最小衰减(db)").withDescription("")
+                                .withIcon(GoogleMaterial.Icon.gmd_business).withIdentifier(6).withSelectable(true)
+                ) // add the items we want to use with our Drawer
+                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
+                    @Override
+                    public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
+                        //check if the drawerItem is set.
+                        //there are different reasons for the drawerItem to be null
+                        //--> click on the header
+                        //--> click on the footer
+                        //those items don't contain a drawerItem
+                        TextView title = new TextView(MainActivity.this);
+                        title.setTextSize(25);
+                        title.setTextColor(getResources().getColor(R.color.black));
+
+                        final EditText editText = (EditText) LayoutInflater.from(MainActivity.this).inflate(R.layout.edit_text_layout, null).findViewById(R.id.edit_text);
+                        if (drawerItem != null) {
+                            switch (drawerItem.getIdentifier()) {
+                                case 1:
+                                    ArrayAdapter<Integer> sampleRate_adapter = new ArrayAdapter<Integer>(MainActivity.this,
+                                            R.layout.dialog_list_item, R.id.textView1, SAMPLE_RATES);
+                                    title.setText("选择录音采样率：");
+                                    final DialogPlus dialog = new DialogPlus.Builder(MainActivity.this)
+                                            .setAdapter(sampleRate_adapter)
+                                            .setCancelable(true)
+                                            .setGravity(DialogPlus.Gravity.CENTER)
+                                            .setMargins(50, 0, 150, 0)
+                                            .setHeader(title)
+                                            .setBackgroundColorResourceId(R.color.material_drawer_background)
+                                            .setOnItemClickListener(new OnItemClickListener() {
+                                                @Override
+                                                public void onItemClick(DialogPlus dialogPlus, Object item, View view, int position) {
+                                                    int new_sampleRate = (Integer) item;
+                                                    if (mSampleRate != new_sampleRate) {
+                                                        mSampleRate = (Integer) item;
+                                                        Toast.makeText(getApplicationContext(), "Samplerate=" + mSampleRate, Toast.LENGTH_SHORT).show();
+                                                        onRecorderParasChanged();
+                                                        onResume();
+                                                    }
+                                                    dialogPlus.dismiss();
+                                                }
+                                            }).create();
+                                    dialog.show();
+
+                                    break;
+                                case 2:
+                                    title.setText("选择滤波器类型：");
+                                    ArrayAdapter<String> filter_adapter = new ArrayAdapter<String>(MainActivity.this,
+                                            R.layout.dialog_list_item, R.id.textView1, FILTER_TYPES);
+
+                                    final DialogPlus filter_dialog = new DialogPlus.Builder(MainActivity.this)
+                                            .setAdapter(filter_adapter)
+                                            .setCancelable(true)
+                                            .setGravity(DialogPlus.Gravity.CENTER)
+                                            .setMargins(50, 0, 150, 0)
+                                            .setHeader(title)
+                                            .setBackgroundColorResourceId(R.color.material_drawer_background)
+                                            .setOnItemClickListener(new OnItemClickListener() {
+                                                @Override
+                                                public void onItemClick(DialogPlus dialogPlus, Object item, View view, int position) {
+                                                    if (mFilterType != (position - 1)) {
+                                                        mFilterType = position - 1;
+                                                        onFilterParasChanged();
+                                                        System.out.println("filter position:" + position);
+                                                    }
+                                                    dialogPlus.dismiss();
+                                                }
+                                            }).create();
+                                    filter_dialog.show();
+
+                                    break;
+
+                                case 3:
+                                    title.setText("设置通带截止频率");
+                                    editText.setText(mPassFreq + "");
+                                    editText.setHint("输入截止频率:");
+                                    ViewHolder holder = new ViewHolder(editText);
+                                    final DialogPlus dialogPlus = new DialogPlus.Builder(MainActivity.this)
+                                            .setContentHolder(holder)
+                                            .setCancelable(true)
+                                            .setGravity(DialogPlus.Gravity.CENTER)
+                                            .setMargins(50, 0, 150, 0)
+//                                .setHeader(title)
+//                                .setFooter(R.layout.fancy_button)
+                                            .setBackgroundColorResourceId(R.color.material_drawer_background)
+                                            .setOnDismissListener(new OnDismissListener() {
+                                                @Override
+                                                public void onDismiss(DialogPlus dialog) {
+                                                    String text = editText.getText() + "";
+                                                    if (!TextUtils.isEmpty(text)) {
+                                                        int freq = Integer.parseInt(text);
+                                                        if (mPassFreq != freq) {
+                                                            mPassFreq = freq;
+                                                            Log.e(TAG, "pass sample: " + mPassFreq);
+                                                            onFilterParasChanged();
+                                                        }
+                                                    }
+                                                }
+                                            }).create();
+                                    dialogPlus.show();
+                                    break;
+                                case 4:
+                                    title.setText("设置阻带截止频率");
+                                    editText.setText(mStopFreq + "");
+                                    editText.setHint("输入截止频率:");
+                                    ViewHolder holder2 = new ViewHolder(editText);
+                                    final DialogPlus dialogPlus2 = new DialogPlus.Builder(MainActivity.this)
+                                            .setContentHolder(holder2)
+                                            .setCancelable(true)
+                                            .setGravity(DialogPlus.Gravity.CENTER)
+                                            .setMargins(50, 0, 150, 0)
+//                                .setHeader(title)
+//                                .setFooter(R.layout.fancy_button)
+                                            .setBackgroundColorResourceId(R.color.material_drawer_background)
+                                            .setOnDismissListener(new OnDismissListener() {
+                                                @Override
+                                                public void onDismiss(DialogPlus dialog) {
+                                                    String text = editText.getText() + "";
+                                                    if (!TextUtils.isEmpty(text)) {
+                                                        int freq = Integer.parseInt(text);
+                                                        if (mStopFreq != freq) {
+                                                            mStopFreq = freq;
+                                                            Log.d(TAG, "stop sample: " + mStopFreq);
+                                                            onFilterParasChanged();
+                                                        }
+                                                    }
+                                                }
+                                            }).create();
+                                    dialogPlus2.show();
+                                    break;
+                                case 5:
+                                    title.setText("设置通带最大衰减");
+                                    editText.setText(mPassWave + "");
+                                    editText.setHint("输入通带纹波:");
+                                    ViewHolder holder3 = new ViewHolder(editText);
+                                    final DialogPlus dialogPlus3 = new DialogPlus.Builder(MainActivity.this)
+                                            .setContentHolder(holder3)
+                                            .setCancelable(true)
+                                            .setGravity(DialogPlus.Gravity.CENTER)
+                                            .setMargins(50, 0, 150, 0)
+//                                .setHeader(title)
+//                                .setFooter(R.layout.fancy_button)
+                                            .setBackgroundColorResourceId(R.color.material_drawer_background)
+                                            .setOnDismissListener(new OnDismissListener() {
+                                                @Override
+                                                public void onDismiss(DialogPlus dialog) {
+                                                    String text = editText.getText() + "";
+                                                    if (!TextUtils.isEmpty(text)) {
+                                                        double passWave = Double.parseDouble(text);
+                                                        if (mPassWave != passWave) {
+                                                            mPassWave = passWave;
+                                                            Log.d(TAG, "passWave: " + mStopFreq);
+                                                            onFilterParasChanged();
+                                                        }
+                                                    }
+                                                }
+                                            }).create();
+                                    dialogPlus3.show();
+                                    break;
+
+                                case 6:
+                                    title.setText("设置阻带最小衰减");
+                                    editText.setText(mStopDec + "");
+                                    editText.setHint("输入阻带衰减增益:");
+                                    ViewHolder holder4 = new ViewHolder(editText);
+                                    final DialogPlus dialogPlus4 = new DialogPlus.Builder(MainActivity.this)
+                                            .setContentHolder(holder4)
+                                            .setCancelable(true)
+                                            .setGravity(DialogPlus.Gravity.CENTER)
+                                            .setMargins(50, 0, 150, 0)
+//                                .setHeader(title)
+//                                .setFooter(R.layout.fancy_button)
+                                            .setBackgroundColorResourceId(R.color.material_drawer_background)
+                                            .setOnDismissListener(new OnDismissListener() {
+                                                @Override
+                                                public void onDismiss(DialogPlus dialog) {
+                                                    String text = editText.getText() + "";
+                                                    if (!TextUtils.isEmpty(text)) {
+                                                        double stopDec = Double.parseDouble(text);
+                                                        if (mStopDec != stopDec) {
+                                                            mStopDec = stopDec;
+                                                            Log.d(TAG, "stop sample: " + mStopFreq);
+                                                            onFilterParasChanged();
+                                                        }
+                                                    }
+                                                }
+                                            }).create();
+                                    dialogPlus4.show();
+                                    break;
+
+                                default:
+                                    break;
+                            }
+                        }
+                        return true;
+                    }
+                })
+                .withSavedInstance(savedInstanceState)
+                .withShowDrawerOnFirstLaunch(true)
+                .build();
+
+        //if you have many different types of DrawerItems you can magically pre-cache those items to get a better scroll performance
+        //make sure to init the cache after the DrawerBuilder was created as this will first clear the cache to make sure no old elements are in
+        RecyclerViewCacheUtil.getInstance().withCacheSize(2).init(result);
+
+        //only set the active selection or active profile if we do not recreate the activity
+        if (savedInstanceState == null) {
+            // set the selection to the item with the identifier 11
+            result.setSelection(1, false);
+
+            //set the active profile
+            header.setActiveProfile(profile1);
+        }
+
+//        result.updateBadge(4, new StringHolder(10 + ""));
     }
 
-
-    private void initDrawer() {
-//        mDrawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
-//        mDrawerList = (ListView) findViewById(R.id.navdrawer);
-
-        drawerArrow = new DrawerArrowDrawable(this) {
-            @Override
-            public boolean isLayoutRtl() {
-                return false;
+    private class ResultHandler extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case AudioRecorder.BEGIN_CALCULATE_HEART_RATE:
+                    //getSupportActionBar().setTitle("开始计算心率...");
+                    break;
+                case AudioRecorder.PERIOD_GOT:
+                    int i = (int) msg.obj;
+                    Log.e(TAG, "handleMessage: " + i);
+                    setHeartRate(i);
+                    break;
+                default:
+                    break;
             }
-        };
-        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
-                drawerArrow, R.string.drawer_open,
-                R.string.drawer_close) {
-
-            public void onDrawerClosed(View view) {
-                super.onDrawerClosed(view);
-                mDrawerOpened = false;
-                invalidateOptionsMenu();
-            }
-
-            public void onDrawerOpened(View drawerView) {
-                super.onDrawerOpened(drawerView);
-                invalidateOptionsMenu();
-                mDrawerOpened = true;
-                mAudioRecorder.stop();
-            }
-        };
-        mDrawerLayout.setDrawerListener(mDrawerToggle);
-        mDrawerToggle.syncState();
-
-        String[] values = new String[]{
-                "录音采样率",
-                "滤波器类型",
-                "通带截止频率",
-                "阻带截止频率",
-                "通带最大衰减(db)",
-                "阻带最小衰减(db)"
-        };
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
-                R.layout.slide_list_item, R.id.textView, values);
-        mDrawerList.setAdapter(adapter);
-
-
-        mDrawerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                TextView title = new TextView(MainActivity.this);
-                title.setTextSize(25);
-                title.setTextColor(getResources().getColor(R.color.black));
-
-                final EditText editText = (EditText) LayoutInflater.from(MainActivity.this).inflate(R.layout.edit_text_layout, null).findViewById(R.id.edit_text);
-                switch (position) {
-
-                    case 0:
-                        ArrayAdapter<Integer> sampleRate_adapter = new ArrayAdapter<Integer>(MainActivity.this,
-                                R.layout.dialog_list_item, R.id.textView1, SAMPLE_RATES);
-                        title.setText("选择录音采样率：");
-                        final DialogPlus dialog = new DialogPlus.Builder(MainActivity.this)
-                                .setAdapter(sampleRate_adapter)
-                                .setCancelable(true)
-                                .setGravity(DialogPlus.Gravity.CENTER)
-                                .setMargins(50, 0, 150, 0)
-                                .setHeader(title)
-                                .setBackgroundColorResourceId(R.color.pink)
-                                .setOnItemClickListener(new OnItemClickListener() {
-                                    @Override
-                                    public void onItemClick(DialogPlus dialogPlus, Object item, View view, int position) {
-                                        int new_sampleRate = (Integer) item;
-                                        if (mSampleRate != new_sampleRate) {
-                                            mSampleRate = (Integer) item;
-                                            onRecorderParasChanged();
-                                        }
-                                        dialogPlus.dismiss();
-                                    }
-                                }).create();
-                        dialog.show();
-
-                        break;
-                    case 1:
-                        title.setText("选择滤波器类型：");
-                        ArrayAdapter<String> filter_adapter = new ArrayAdapter<String>(MainActivity.this,
-                                R.layout.dialog_list_item, R.id.textView1, FILTER_TYPES);
-
-                        final DialogPlus filter_dialog = new DialogPlus.Builder(MainActivity.this)
-                                .setAdapter(filter_adapter)
-                                .setCancelable(true)
-                                .setGravity(DialogPlus.Gravity.CENTER)
-                                .setMargins(50, 0, 150, 0)
-                                .setHeader(title)
-                                .setBackgroundColorResourceId(R.color.pink)
-                                .setOnItemClickListener(new OnItemClickListener() {
-                                    @Override
-                                    public void onItemClick(DialogPlus dialogPlus, Object item, View view, int position) {
-                                        if (mFilterType != (position - 1)) {
-                                            mFilterType = position - 1;
-                                            onFilterParasChanged();
-                                            System.out.println("filter position:" + position);
-                                        }
-                                        dialogPlus.dismiss();
-                                    }
-                                }).create();
-                        filter_dialog.show();
-
-                        break;
-
-                    case 2:
-                        title.setText("设置通带截止频率");
-                        editText.setText(mPassFreq + "");
-                        editText.setHint("输入截止频率:");
-                        ViewHolder holder = new ViewHolder(editText);
-                        final DialogPlus dialogPlus = new DialogPlus.Builder(MainActivity.this)
-                                .setContentHolder(holder)
-                                .setCancelable(true)
-                                .setGravity(DialogPlus.Gravity.CENTER)
-                                .setMargins(50, 0, 150, 0)
-//                                .setHeader(title)
-//                                .setFooter(R.layout.fancy_button)
-                                .setBackgroundColorResourceId(R.color.pink)
-                                .setOnDismissListener(new OnDismissListener() {
-                                    @Override
-                                    public void onDismiss(DialogPlus dialog) {
-                                        String text = editText.getText() + "";
-                                        if (!TextUtils.isEmpty(text)) {
-                                            int freq = Integer.parseInt(text);
-                                            if (mPassFreq != freq) {
-                                                mPassFreq = freq;
-                                                Log.d(TAG, "pass sample: " + mPassFreq);
-                                                onFilterParasChanged();
-                                            }
-                                        }
-                                    }
-                                }).create();
-                        dialogPlus.show();
-                        break;
-                    case 3:
-                        title.setText("设置阻带截止频率");
-                        editText.setText(mStopFreq + "");
-                        editText.setHint("输入截止频率:");
-                        ViewHolder holder2 = new ViewHolder(editText);
-                        final DialogPlus dialogPlus2 = new DialogPlus.Builder(MainActivity.this)
-                                .setContentHolder(holder2)
-                                .setCancelable(true)
-                                .setGravity(DialogPlus.Gravity.CENTER)
-                                .setMargins(50, 0, 150, 0)
-//                                .setHeader(title)
-//                                .setFooter(R.layout.fancy_button)
-                                .setBackgroundColorResourceId(R.color.pink)
-                                .setOnDismissListener(new OnDismissListener() {
-                                    @Override
-                                    public void onDismiss(DialogPlus dialog) {
-                                        String text = editText.getText() + "";
-                                        if (!TextUtils.isEmpty(text)) {
-                                            int freq = Integer.parseInt(text);
-                                            if (mStopFreq != freq) {
-                                                mStopFreq = freq;
-                                                Log.d(TAG, "stop sample: " + mStopFreq);
-                                                onFilterParasChanged();
-                                            }
-                                        }
-                                    }
-                                }).create();
-                        dialogPlus2.show();
-                        break;
-                    case 4:
-                        title.setText("设置通带最大衰减");
-                        editText.setText(mPassWave + "");
-                        editText.setHint("输入通带纹波:");
-                        ViewHolder holder3 = new ViewHolder(editText);
-                        final DialogPlus dialogPlus3 = new DialogPlus.Builder(MainActivity.this)
-                                .setContentHolder(holder3)
-                                .setCancelable(true)
-                                .setGravity(DialogPlus.Gravity.CENTER)
-                                .setMargins(50, 0, 150, 0)
-//                                .setHeader(title)
-//                                .setFooter(R.layout.fancy_button)
-                                .setBackgroundColorResourceId(R.color.pink)
-                                .setOnDismissListener(new OnDismissListener() {
-                                    @Override
-                                    public void onDismiss(DialogPlus dialog) {
-                                        String text = editText.getText() + "";
-                                        if (!TextUtils.isEmpty(text)) {
-                                            double passWave = Double.parseDouble(text);
-                                            if (mPassWave != passWave) {
-                                                mPassWave = passWave;
-                                                Log.d(TAG, "passWave: " + mStopFreq);
-                                                onFilterParasChanged();
-                                            }
-                                        }
-                                    }
-                                }).create();
-                        dialogPlus3.show();
-                        break;
-
-                    case 5:
-                        title.setText("设置阻带最小衰减");
-                        editText.setText(mStopDec + "");
-                        editText.setHint("输入阻带衰减增益:");
-                        ViewHolder holder4 = new ViewHolder(editText);
-                        final DialogPlus dialogPlus4 = new DialogPlus.Builder(MainActivity.this)
-                                .setContentHolder(holder4)
-                                .setCancelable(true)
-                                .setGravity(DialogPlus.Gravity.CENTER)
-                                .setMargins(50, 0, 150, 0)
-//                                .setHeader(title)
-//                                .setFooter(R.layout.fancy_button)
-                                .setBackgroundColorResourceId(R.color.pink)
-                                .setOnDismissListener(new OnDismissListener() {
-                                    @Override
-                                    public void onDismiss(DialogPlus dialog) {
-                                        String text = editText.getText() + "";
-                                        if (!TextUtils.isEmpty(text)) {
-                                            double stopDec = Double.parseDouble(text);
-                                            if (mStopDec != stopDec) {
-                                                mStopDec = stopDec;
-                                                Log.d(TAG, "stop sample: " + mStopFreq);
-                                                onFilterParasChanged();
-                                            }
-                                        }
-                                    }
-                                }).create();
-                        dialogPlus4.show();
-                        break;
-
-
-                    default:
-                        break;
-                }
-            }
-        });
-
-
+        }
     }
+
+    ;
 
     private void initResourceRefs() {
-//        mNewButton = (ImageButton) findViewById(R.id.newButton);
-//        mRecordButton = (ImageButton) findViewById(R.id.recordButton);
-//        mStopButton = (ImageButton) findViewById(R.id.stopButton);
-//        mPlayButton = (ImageButton) findViewById(R.id.playButton);
-//        mPauseButton = (ImageButton) findViewById(R.id.pauseButton);
-//        mDeleteButton = (ImageButton) findViewById(R.id.deleteButton);
-        CheckBox record_listening_switch = (CheckBox) findViewById(R.id.record_play_switch);
+        AudioManager audioManager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
+        //  audioManager.setMode(AudioManager.STREAM_MUSIC);
+        // audioManager.setSpeakerphoneOn(false);
+        // audioManager.setMicrophoneMute(true);
+
         mNewButton.setOnClickListener(this);
         mRecordButton.setOnClickListener(this);
         mStopButton.setOnClickListener(this);
         mPlayButton.setOnClickListener(this);
         mPauseButton.setOnClickListener(this);
         mDeleteButton.setOnClickListener(this);
-        record_listening_switch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        editFileNameButton.setOnClickListener(this);
+        ill.setOnClickListener(this);
+        scan_bluetooth.setOnClickListener(this);
+
+        record_play_switch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
@@ -463,17 +617,15 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         mFileNameEditText.setNameChangeListener(new RecordNameEditText.OnNameChangeListener() {
             @Override
             public void onNameChanged(String name) {
+
                 if (!TextUtils.isEmpty(name)) {
-                    mAudioRecorder.renameSampleFile(name);
+                    mFileNameEditText.setFileName(name);
+                    //  mAudioRecorder.renameSampleFile(name);
                 }
             }
         });
 
-//        mTimerLayout = (LinearLayout) findViewById(R.id.time_calculator);
-//        mSeekBarLayout = (LinearLayout) findViewById(R.id.play_seek_bar_layout);
-//        mStartTime = (TextView) findViewById(R.id.starttime);
-//        mTotalTime = (TextView) findViewById(R.id.totaltime);
-//        mPlaySeekBar = (SeekBar) findViewById(R.id.play_seek_bar);
+
         mPlaySeekBar.setMax(SEEK_BAR_MAX);
 
         mPlaySeekBar.setOnSeekBarChangeListener(mSeekBarChangeListener);
@@ -481,46 +633,6 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         mTimerFormat = getResources().getString(R.string.timer_format);
         mLastClickTime = 0;
         mLastButtonId = 0;
-
-       /* // Try to find the blurred image
-        final File blurredImage = new File(getFilesDir() + BLURRED_IMG_PATH);
-        final int screenWidth = ImageUtils.getScreenWidth(this);
-        if (!blurredImage.exists()) {
-
-            // launch the progressbar in ActionBar
-            setProgressBarIndeterminateVisibility(true);
-
-            new Thread(new Runnable() {
-
-                @Override
-                public void run() {
-
-                    // No image found => let's generate it!
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inSampleSize = 2;
-                    Bitmap image = BitmapFactory.decodeResource(getResources(), R.drawable.image, options);
-                    Bitmap newImg = Blur.fastblur(MainActivity.this, image, 12);
-                    ImageUtils.storeImage(newImg, blurredImage);
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            updateView(screenWidth);
-
-                            // And finally stop the progressbar
-                            setProgressBarIndeterminateVisibility(false);
-                        }
-                    });
-
-                }
-            }).start();
-
-        } else {
-
-            // The image has been found. Let's update the view
-            updateView(screenWidth);
-
-        }*/
 
     }
 
@@ -555,7 +667,9 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 
 
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (mDrawerOpened) {
+
+            if (result != null && result.isDrawerOpen()) {
+                result.closeDrawer();
                 return false;
             } else {
                 switch (mAudioRecorder.getState()) {
@@ -587,6 +701,13 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         try {
             coefficients = mIirDesigner.designDigitalFilter(mSampleRate, FilterType.LOWPASS, new double[]{mPassFreq},
                     new double[]{mStopFreq}, mPassWave, mStopDec);
+
+            int length = coefficients.getFilterOrder();
+            for (int i = 0; i < length; i++) {
+                Log.e(TAG, "onStart: filter" + i +
+                        "---   " + coefficients.getACoefficients()[i] + "    ----" + coefficients.getBCoefficients()[i]);
+
+            }
             System.out.println("filter order: " + coefficients.getFilterOrder());
             mAudioRecorder.setFilterCoefs(coefficients);
             chartView.setmSampleRate(mSampleRate);
@@ -598,6 +719,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     @Override
     protected void onResume() {
         super.onResume();
+        getSupportActionBar().setTitle("HSRecorder");
         //这里设置录音参数和滤波器参数发生变化后相应逻辑
         if (mFilterParaChanged) {
             try {
@@ -634,7 +756,9 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         }
 
         if (mRecorderParaChanged) {
+            Toast.makeText(this, "修改采样率", Toast.LENGTH_SHORT).show();
             mAudioRecorder.setSampleRate(mSampleRate);
+            chartView.setmSampleRate(mSampleRate);
             mAudioRecorder.reset();
             mAudioRecorder.setFilterCoefs(coefficients);
             resetFileNameEditText();
@@ -674,16 +798,20 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     * Handle the buttons.
     */
     public void onClick(View button) {
+        Log.e(TAG, "onClick: edit" + button.toString());
         if (System.currentTimeMillis() - mLastClickTime < 300) {
             // in order to avoid user click bottom too quickly
             return;
         }
 
 
-        if (button.getId() == mLastButtonId && button.getId() != R.id.newButton) {
+        if (button.getId() == mLastButtonId && button.getId() != R.id.newButton && button.getId() != R.id.edit_filename) {
             // as the recorder state is async with the UI
             // we need to avoid launching the duplicated action
+
             return;
+
+
         }
 
         if (button.getId() == R.id.stopButton && System.currentTimeMillis() - mLastClickTime < 1500) {
@@ -695,11 +823,12 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         mLastClickTime = System.currentTimeMillis();
         mLastButtonId = button.getId();
 
-        switch (button.getId()) {
+        switch (mLastButtonId) {
             case R.id.newButton:
                 mFileNameEditText.clearFocus();
                 resetFileNameEditText();
                 backToRecordUI();
+
                 break;
             case R.id.recordButton:
                 showOverwriteConfirmDialogIfConflicts();
@@ -714,11 +843,189 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                 break;
             case R.id.pauseButton:
                 mAudioRecorder.pausePlayback();
+
                 break;
             case R.id.deleteButton:
                 showDeleteConfirmDialog();
                 break;
+            case R.id.edit_filename:
+                Log.e(TAG, "onClick: edit");
+                setEditFileNameButton();
+
+                break;
+            case R.id.ill:
+                setIllPromble();
+                break;
+            case R.id.scan_bluetooth:
+                mAudioRecorder.clear();
+                Intent serverIntent = new Intent(MainActivity.this, DeviceListActivity.class);
+                startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE);
+                break;
         }
+    }
+
+    private class MyHandler extends Handler {
+        private WeakReference<MainActivity> mweakActivty;
+    public MyHandler(MainActivity activity) {
+        mweakActivty= new WeakReference<MainActivity>(activity);
+    }
+
+
+    public void handleMessage(Message msg) {
+        {
+            Log.e(TAG, "aaa start" );
+
+            //根据蓝牙传过来的数据进行处理
+            switch (msg.what) {
+                case MESSAGE_READ:
+                    float[] readBufOne = new float[msg.arg1];
+                    float[] readBuf = (float[]) msg.obj;
+                    int count = msg.arg1;
+                    Log.e(TAG, "arg1=..."+msg.arg1 );
+
+                    for (int i = 0; i < count; i++) {
+                       // readBuf[i] = readBuf[i];
+
+                       /* try {
+                            writerOne.append(readBuf[i] + "" + "\n");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }*/
+
+                        readBufOne[i] = readBuf[i]; //出现 数组越界？
+                        Log.e(TAG, "readbuf" + readBufOne[i]);
+
+                    }
+                    Intent intent = new Intent();
+                    intent.setClass(MainActivity.this, AudioRecorder.class);
+                    Bundle bundle = new Bundle();
+                    bundle.putFloatArray("buffer", readBufOne);
+                    intent.putExtras(bundle);
+                    startActivity(intent);
+                    //mDataOneChart.updateFloats(readBufOne);
+                    break;
+
+                case MESSAGE_STATE_CHANGE:
+                    if (D)
+                        Log.i(TAG, "MESSAGE_STATE_CHANGE: " + msg.arg1);
+                    switch (msg.arg1) {
+                        //以下几个情况主要用于显示蓝牙状态的改变，因为取消了标题栏，所以没有添加状态变化的提示
+                        case BluetoothService.STATE_CONNECTED:
+                              /*  setStatus(getString(R.string.title_connected_to,
+                                        mConnectedDeviceName));*/
+                            break;
+                        case BluetoothService.STATE_CONNECTING:
+                            /*    setStatus(R.string.title_connecting);*/
+                            break;
+                        case BluetoothService.STATE_LISTEN:
+
+                        case BluetoothService.STATE_NONE:
+                            /*    setStatus(R.string.title_not_connected);*/
+                            break;
+
+                    }
+                    break;
+                case MESSAGE_DEVICE_NAME:
+                    // save the connected device's name
+                    mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
+                    Log.e(TAG,"mConnectedDeviceName="+mConnectedDeviceName);
+                    Toast.makeText(getApplicationContext(), "Connected to " + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
+                    break;
+                case MESSAGE_TOAST:
+                    Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST), Toast.LENGTH_SHORT).show();
+                    break;
+                case MESSAGE_TEXT:
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        switch (requestCode) {
+            case REQUEST_CONNECT_DEVICE:
+                // When DeviceListActivity returns with a device to connect
+                if (resultCode == Activity.RESULT_OK) {
+                    Log.e(TAG, "bluetoothHandle: connect");
+                    connectDevice(data);
+                }
+                break;
+            case REQUEST_ENABLE_BT:
+                // When the request to enable Bluetooth returns
+                if (resultCode == Activity.RESULT_OK) {
+                    // Bluetooth is now enabled, so set up a chat session
+                    // setupChat();
+                } else {
+                    // User did not enable Bluetooth or an error occurred
+                    Log.e(TAG, "BT not enabled");
+                    Toast.makeText(context, R.string.bt_not_enabled_leaving,
+                            Toast.LENGTH_SHORT).show();
+                }
+        }
+    }
+   public  BluetoothService getmChatService() {
+        return mChatService;
+    }
+
+    public void connectDevice(Intent data) {
+        String address = data.getExtras().getString(
+                DeviceListActivity.EXTRA_DEVICE_ADDRESS);
+        editor.putString("address", address);
+        editor.commit();
+        // Get the BluetoothDevice object
+        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+        // Attempt to connect to the device
+       // mappFrament.getmChatService().connect(device);
+        getmChatService().connect(device);
+    }
+
+    public void setEditFileNameButton() {
+        PopupMenu popup = new PopupMenu(this, editFileNameButton);
+        getMenuInflater().inflate(R.menu.editfilename_menu, popup.getMenu());
+        popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+
+            public boolean onMenuItemClick(MenuItem item) {
+                if (!TextUtils.isEmpty(item.toString()))
+                    mFileNameEditText.setFileName(item.toString());
+            /*    switch (item.getItemId()) {
+                    case R.id.position1:
+                        if (!TextUtils.isEmpty(item.toString()))
+                            mFileNameEditText.setFileName(item.toString());
+
+                        break;
+                    case R.id.position2:
+                        break;
+                    case R.id.position3:
+                        break;
+                    case R.id.position4:
+                        break;
+                    case R.id.position5:
+                        break;
+                    default: break;
+                }*/
+                return true;
+            }
+        });
+
+        popup.show();
+
+    }
+
+
+    private void setIllPromble() {
+        PopupMenu popupMenu = new PopupMenu(this, ill);
+        getMenuInflater().inflate(R.menu.ill_menu, popupMenu.getMenu());
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                mAudioRecorder.changeDir( item.toString());
+
+                return true;
+            }
+        });
+        popupMenu.show();
     }
 
     private void showOverwriteConfirmDialogIfConflicts() {
@@ -797,11 +1104,11 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         }
     }
 
-    /*
-    * Registers an intent to listen for
-    * ACTION_MEDIA_EJECT/ACTION_MEDIA_UNMOUNTED/ACTION_MEDIA_MOUNTED
-    * notifications.
-    */
+    /**
+     * Registers an intent to listen for
+     * ACTION_MEDIA_EJECT/ACTION_MEDIA_UNMOUNTED/ACTION_MEDIA_MOUNTED
+     * notifications.
+     */
     private void registerExternalStorageListener() {
         if (mSDCardMountEventReceiver == null) {
             mSDCardMountEventReceiver = new BroadcastReceiver() {
@@ -825,41 +1132,41 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         ImageView image = new ImageView(this);
         ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         if (number != ':') {
-            image.setBackgroundResource(R.drawable.background_number);
+            image.setBackgroundResource(R.mipmap.background_number);
         }
         switch (number) {
             case '0':
-                image.setImageResource(R.drawable.number_0);
+                image.setImageResource(R.mipmap.number_0);
                 break;
             case '1':
-                image.setImageResource(R.drawable.number_1);
+                image.setImageResource(R.mipmap.number_1);
                 break;
             case '2':
-                image.setImageResource(R.drawable.number_2);
+                image.setImageResource(R.mipmap.number_2);
                 break;
             case '3':
-                image.setImageResource(R.drawable.number_3);
+                image.setImageResource(R.mipmap.number_3);
                 break;
             case '4':
-                image.setImageResource(R.drawable.number_4);
+                image.setImageResource(R.mipmap.number_4);
                 break;
             case '5':
-                image.setImageResource(R.drawable.number_5);
+                image.setImageResource(R.mipmap.number_5);
                 break;
             case '6':
-                image.setImageResource(R.drawable.number_6);
+                image.setImageResource(R.mipmap.number_6);
                 break;
             case '7':
-                image.setImageResource(R.drawable.number_7);
+                image.setImageResource(R.mipmap.number_7);
                 break;
             case '8':
-                image.setImageResource(R.drawable.number_8);
+                image.setImageResource(R.mipmap.number_8);
                 break;
             case '9':
-                image.setImageResource(R.drawable.number_9);
+                image.setImageResource(R.mipmap.number_9);
                 break;
             case ':':
-                image.setImageResource(R.drawable.colon);
+                image.setImageResource(R.mipmap.colon);
                 break;
         }
         image.setLayoutParams(lp);
@@ -914,6 +1221,10 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         mPauseButton.setVisibility(View.GONE);
         mDeleteButton.setEnabled(true);
         mRecordButton.requestFocus();
+        mFileNameEditText.setEnabled(true);
+        record_play_switch.setChecked(false);
+
+
 
         mSeekBarLayout.setVisibility(View.GONE);
     }
@@ -944,6 +1255,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                     mStopButton.setVisibility(View.GONE);
                     mPlayButton.setVisibility(View.VISIBLE);
                     mPauseButton.setVisibility(View.GONE);
+
                     mDeleteButton.setEnabled(true);
                     mPauseButton.requestFocus();
 
@@ -1085,34 +1397,29 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     public boolean onOptionsItemSelected(MenuItem item) {
         Intent intent;
         switch (item.getItemId()) {
-            case android.R.id.home:
-                if (mDrawerLayout.isDrawerOpen(mDrawerList)) {
-                    mDrawerLayout.closeDrawer(mDrawerList);
-                } else {
-                    mDrawerLayout.openDrawer(mDrawerList);
-                }
+            case R.id.synchronized_data:
                 break;
-            case R.id.menu_record_list:
-                intent = new Intent(this, AudioListActivity.class);
-                startActivity(intent);
+            case R.id.check_update:
                 break;
-            /*case R.id.menu_setting:
-                intent = new Intent(this, AudioRecorderPreferenceActivity.class);
-                startActivity(intent);
-                break;*/
             case R.id.menu_exit:
                 switch (mAudioRecorder.getState()) {
                     case AudioRecorder.IDLE_STATE:
+                    case AudioRecorder.RECORDING_STOPPED:
+
                     case AudioRecorder.PLAYING_PAUSED_STATE:
+
                         if (mAudioRecorder.sampleLength() > 0)
                             saveSample();
+
                         finish();
                         break;
                     case AudioRecorder.PLAYING_STATE:
+
                         mAudioRecorder.stop();
                         saveSample();
                         break;
                     case AudioRecorder.RECORDING_STATE:
+
                         mAudioRecorder.clear();
                         finish();
                         break;
@@ -1127,7 +1434,15 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
-        mDrawerToggle.syncState();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        //add the values which need to be saved from the drawer to the bundle
+        outState = result.saveInstanceState(outState);
+        //add the values which need to be saved from the accountHeader to the bundle
+        outState = header.saveInstanceState(outState);
+        super.onSaveInstanceState(outState);
     }
 
     private SeekBar.OnSeekBarChangeListener mSeekBarChangeListener = new SeekBar.OnSeekBarChangeListener() {
@@ -1229,36 +1544,19 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
         mFilterParaChanged = true;
     }
 
-    /**
-     * 设置毛玻璃背景
-     *
-     * @param id 背景图片id
-     */
-    @SuppressWarnings("deprecation")
-    private void setBackground(final LinearLayout layout, int id) {
-        //从资源文件中得到图片，并生成Bitmap图片
-        Bitmap bmp = BitmapFactory.decodeResource(getResources(), id);
-        //0-25，表示模糊值
-        final Bitmap blurBmp = Blur.fastblur(MainActivity.this, bmp, 10);
-        // 将Bitmap转换为Drawable
-        final Drawable newBitmapDrawable = new BitmapDrawable(blurBmp);
-        layout.post(new Runnable()  //调用UI线程
-        {
-            @Override
-            public void run() {
-                layout.setBackgroundDrawable(newBitmapDrawable);//设置背景
+    private void setHeartRate(int i) {
+        if (i > 220) {
+            return;
+        }
+        if (i > 120 || i < 50) {
+            countNum++;
+            if (countNum < 3) {
+                return;
             }
-        });
-    }
+        }
 
-    //update imageView background
-    private void updateView(final int screenWidth) {
-        Bitmap bmpBlurred = BitmapFactory.decodeFile(getFilesDir() + BLURRED_IMG_PATH);
-        bmpBlurred = Bitmap.createScaledBitmap(bmpBlurred, screenWidth, (int) (bmpBlurred.getHeight()
-                * ((float) screenWidth) / (float) bmpBlurred.getWidth()), false);
-
-//        mBlurredImage.setImageBitmap(bmpBlurred);
-
+        heartRate.setText(" " + i);
+        countNum = 0;
     }
 
 

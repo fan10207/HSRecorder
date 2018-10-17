@@ -61,8 +61,8 @@
     <string name="alert_message_delete_record">Do you want to delete selected record?</string>
     <string name="user_outer_mic">use a outer mic</string>
     <string name="pref_summary_use_outer_mic">use outer mic</string>
-    <string name="delete_file">鍒犻櫎</string>
-    <string name="share_file">鍒嗕韩</string>
+    <string name="delete_file">删除文件</string>
+    <string name="share_file">发送到</string>
 
     <string name="favorite">Favorite</string>
     <string name="error_no_metadata">Unable to retrieve metadata.</string>
@@ -105,6 +105,11 @@
     <string name="drawer_close">close</string>
     <string name="freq_cannot_be_empty">can not be empty</string>
     <string name="your_input_is_ugly">invalid input</string>
+    <string name="drawer_item_compact_header">header</string>
+    <string name="drawer_item_compact_header_desc">drawer_item_compact_header</string>
+    <string name="sychronized_data">同步数据</string>
+    <string name="check_update">检查更新</string>
+    <string name="rename_file">重命名</string>
 
     <string-array name="prefEntries_recordType">
         <item>wav</item>
@@ -129,5 +134,22 @@
         <item>22050</item>
         <item>44100</item>
     </string-array>
+    <string name="position1" >二尖瓣区</string>
+    <string name="position2" >肺动脉瓣区</string>
+    <string name="position3" >主动脉瓣区</string>
+    <string name="position4" >主动脉瓣第二听诊区</string>
+    <string name="position5" >三尖瓣区</string>
 
+    <string name="ill1" >心脏杂音</string>
+    <string name="ill2" >早搏</string>
+    <string name="ill3" >房颤</string>
+
+    <string name="scanning">扫描附近的蓝牙设备...</string>
+    <string name="select_device">选择设备来建立连接</string>
+    <string name="none_paired">没有已配对的设备</string>
+    <string name="none_found">没有扫描到蓝牙设备</string>
+    <string name="title_paired_devices">已配对设备</string>
+    <string name="title_other_devices">附近的设备</string>
+    <string name="button_scan">扫描蓝牙设备</string>
+    <string name="bt_not_enabled_leaving">未打开蓝牙设备,再见</string>
 </resources>

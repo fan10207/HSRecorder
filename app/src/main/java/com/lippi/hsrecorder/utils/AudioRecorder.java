@@ -5,11 +5,13 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.View;
 
 
 import com.lippi.hsrecorder.iirfilterdesigner.model.FilterCoefficients;
@@ -18,6 +20,7 @@ import com.lippi.hsrecorder.pcm.RiffHeaderData;
 import com.lippi.hsrecorder.pcm.WavAudioFormat;
 import com.lippi.hsrecorder.pcm.WavFileReader;
 import com.lippi.hsrecorder.utils.helper.LogHelper;
+import com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -26,17 +29,21 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.PriorityQueue;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import roboguice.activity.RoboActionBarActivity;
 
 /**
  * Created by lippi on 14-12-4.
  */
-public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener*/{
+public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener*/ {
 
     private static final String TAG = LogHelper.makeLogTag(AudioRecorder.class);
 
@@ -56,14 +63,16 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
     public static final int RECORDING_STATE = 1;
 
-    public static final int RECORDING_STOPPED = 4;
-
     public static final int PLAYING_STATE = 2;
 
     public static final int PLAYING_PAUSED_STATE = 3;
 
+    public static final int RECORDING_STOPPED = 4;
+
+
     //设置AudioRecorder每隔FrameCount帧就通知线程有数据可读
     private static final int FRAME_COUNT = 640;
+    public static final int BEGIN_CALCULATE_HEART_RATE = 1001;
 
     private int sampleRate;
 
@@ -84,7 +93,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 //    private File mRecordFile = null;
     private File mFilterFile = null;
 
-//    private DataOutputStream dataOutputStream;
+    //    private DataOutputStream dataOutputStream;
     private DataOutputStream filterOutputStream;
 
     private WavFileReader mWavFileReader;
@@ -100,7 +109,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     private int totalSizeInBytes = 0;
 
     //双缓冲队列,用于播放
-    private LinkedList<short[]> PlayBuffer;
+    private volatile LinkedList<short[]> PlayBuffer;
 
     //format
     private WavAudioFormat wavAudioFormat;
@@ -114,6 +123,10 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     //自适应放大倍数
     private int scale = 1;
 
+    int count=1;
+    private boolean isFirst=true;
+    private float heartrate;
+
     //the position we are playing
 //    private int mFramePosition = 0;
 
@@ -123,6 +136,8 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
     private ChartView chartView;
 
+    private String prefixF ="normal";
+
     //android built-in Visualizer
 //    private Visualizer mVisualizer;
 
@@ -131,30 +146,39 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
     //filter param
     private int filter_order;
-
+    volatile short[] resampleData = new short[8000];
+    int index = 0;
     //录音的缓冲区
     private short[] buffer;
-
+    // filter coefficient Ak
     private double[] pythonA;
-
+    // filter coefficient Bk
     private double[] pythonB;
 
-    //X(n-k)
+    //X(n-k) X(n-1) X(n-2)
     private List<Short> xn_k;
-
-    //用于数字滤波的保存输出历史值
+    private List<Short> xn_k1;
+    //save digital filter output
     List<Double> yn_k;
+    List<Double> yn_k1;
 
     private RecordingThread recordingThread;
 
     //you can choose to play the record when recording
     private volatile boolean playWhenRecording = false;
 
-    private static ExecutorService executors;
+    private ExecutorService executors = Executors.newFixedThreadPool(5);
 
     private static final int AUDIO_RECORD_DATA_COMMING = 0;
 
     private static final int AUDIO_PLAYER_FINISHED = 1;
+
+    private static final int PINK_THRESHOULD = 10;
+    private volatile int pink_detcted = 0;
+    private volatile LinkedList<short[]> reSampledDataList;
+    private Handler mainHandler;
+    public static final int PERIOD_GOT = 1000;
+    private int num = 1;
 
 
     private class UpdateHandler extends Handler {
@@ -163,7 +187,12 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
             switch (msg.what) {
                 case AUDIO_RECORD_DATA_COMMING:
                     short[] shorts = (short[]) msg.obj;
-                    chartView.updateChart(shorts);
+                    int length = shorts.length;
+                    short[] data = new short[length];
+                    for (int i = 0; i < length; i++) {
+                        data[i] = shorts[i];
+                    }
+                    chartView.updateChart(data);
                     break;
                 case AUDIO_PLAYER_FINISHED:
                     onCompletetion();
@@ -175,11 +204,6 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         }
     }
 
-    private OnDataCapturedListener dataCapturedListener;
-
-    public void setDataCapturedListener(OnDataCapturedListener dataCapturedListener) {
-        this.dataCapturedListener = dataCapturedListener;
-    }
 
     /**
      * clear the real time chart
@@ -200,14 +224,14 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         if (!mSampleDir.exists()) {
             mSampleDir.mkdirs();
         }
-        executors = Executors.newFixedThreadPool(2);
+
     }
 
     //provide a interface for callback for the main activity
     public interface OnStateChangedListener {
-        public void onStateChanged(int state);
+        void onStateChanged(int state);
 
-        public void onError(int error);
+        void onError(int error);
     }
 
     private OnStateChangedListener mOnStateChangedListener = null;
@@ -217,19 +241,22 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     }
 
 
+
+
+
     /**
      * construct a Recorder,use PCM_16Bits as default encoder, bacause most android phones support it
      *
      * @param sampleRate
      */
-    public AudioRecorder(int sampleRate, /*SlippingBuffer filterBuffer*/
+    public AudioRecorder(int sampleRate, Handler handler,
                          ChartView view) {
 
         this.sampleRate = sampleRate;
+        this.mainHandler = handler;
         chartView = view;
-        setDataCapturedListener(chartView);
-        /*this.filterBuffer = filterBuffer;*/
         PlayBuffer = new LinkedList<short[]>();
+        reSampledDataList = new LinkedList<short[]>();
     }
 
     public void setFilterCoefs(FilterCoefficients filterCoefs) {
@@ -237,30 +264,12 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         //to plus one because of A[0],B[0]
         xn_k = new ArrayList<Short>(filter_order + 1);
         yn_k = new ArrayList<Double>(filter_order + 1);
-
+        xn_k1 = new ArrayList<Short>(filter_order + 1);
+        yn_k1 = new ArrayList<Double>(filter_order + 1);
         pythonA = filterCoefs.getACoefficients();
         pythonB = filterCoefs.getBCoefficients();
-
     }
 
-
-/*
-    private void setupVisualizerFxAndUI() {
-        // Create the Visualizer object and attach it to our media player.
-        mVisualizer = new Visualizer(mPlayer.getAudioSessionId());
-        mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-        mVisualizer.setDataCaptureListener(new Visualizer.OnDataCaptureListener() {
-            public void onWaveFormDataCapture(Visualizer visualizer, byte[] bytes,
-                                              int samplingRate) {
-                System.out.println("bytes: " + bytes.length);
-                mHandler.obtainMessage(MEDIA_PLAYER_DATA_COMMING, bytes).sendToTarget();
-            }
-
-            public void onFftDataCapture(Visualizer visualizer, byte[] bytes, int samplingRate) {
-            }
-        }, Visualizer.getMaxCaptureRate() / 2, true, false);
-    }
-*/
 
     /**
      * 重新錄音前清除Xn_K
@@ -268,12 +277,21 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     public void clearXnk() {
         xn_k.clear();
         yn_k.clear();
+        xn_k1.clear();
+        yn_k1.clear();
+        PlayBuffer = new LinkedList<short[]>();
+        reSampledDataList = new LinkedList<short[]>();
         for (int i = 0; i < filter_order + 1; i++) {
             xn_k.add(i, (short) 0);
             yn_k.add(i, 0D);
+            xn_k1.add(i, (short) 0);
+            yn_k1.add(i, 0D);
         }
     }
 
+    /**
+     * zoom In the chart
+     */
     public void zoomIn() {
         this.scale *= 2;
     }
@@ -288,15 +306,21 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         this.sampleRate = sampleRate;
     }
 
+
     public void startRecording(final String fileName) {
         stop();
+        clearXnk();
+        totalSizeInBytes=0;
         recordingThread = new RecordingThread();
         if (getState() == RECORDING_STATE) return;
-        Log.d(TAG, "start recording");
+        Log.e(TAG, "start recording");
         try {
             initAudioRecorder();
 //            mRecordFile = new File(mSampleDir, fileName + "origin" + extension);
-            mFilterFile = new File(mSampleDir, fileName + "filter" + extension);
+            SimpleDateFormat dataFormat = new SimpleDateFormat("MM月dd日HH点mm分ss秒", Locale.CHINA);
+            String time=dataFormat.format(Calendar.getInstance().getTime());
+
+            mFilterFile = new File(mSampleDir, fileName+prefixF+time + extension);
 //            dataOutputStream = new DataOutputStream(new FileOutputStream(mRecordFile));
             filterOutputStream = new DataOutputStream(new FileOutputStream(mFilterFile));
             //write 44 bytes header data for wav file
@@ -307,15 +331,20 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         }
 
         audioRecord.startRecording();
+        //executors.execute(new HeartSoundProcessTask());
         setState(RECORDING_STATE);
         mSampleStart = System.currentTimeMillis();
         recordingThread.start();
-        clearXnk();
+
 
         //开始播放
-        if (playWhenRecording) startPlaying();
+        if (playWhenRecording)
+            startPlaying();
 
     }
+
+
+
 
     /**
      * this is the Recording Thread , thread read data from AudioRecord and transfer the data to FilterThread
@@ -325,54 +354,22 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         @Override
         public void run() {
 
-            while (AudioRecorder.this.getState() == RECORDING_STATE) {
-                int sizeInShort = audioRecord.read(buffer, 0, bufferSizeInBytes / 2);
+           while (AudioRecorder.this.getState() == RECORDING_STATE) {
+                /*int sizeInShort = audioRecord.read(buffer, 0, bufferSizeInBytes / 2);
                 //zoomIn and zoomOut the data
                 if (sizeInShort > 0) {
                     for (int i = 0; i < sizeInShort; i++) {
-                        buffer[i] *= scale;
+                        buffer[i] *= scale*0.9;
                     }
-                    //transfer data to filter Thread
-                    executors.execute(new FilterTask(buffer));
-                    // write origin data into file
-                    /**
-                    byte[] innerBuffer = new byte[buffer.length * 2];
-                    //turn buffer into Little_endian byte array
-                    ByteBuffer.wrap(innerBuffer).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-                            .put(buffer);
-                    try {
-                        dataOutputStream.write(innerBuffer);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        Log.d(TAG, "unable to write data into file");
-                    }**/
-                }
+                }*/
+
+
+                executors.execute(new FilterTask(buffer));
+
                 super.run();
 
             }
-            //recording stopped,release and finalize audioRecord
             audioRecord.stop();
-            int size;
-            //finish reading audio data
-            while ((size = audioRecord.read(buffer, 0, bufferSizeInBytes / 2)) > 0) {
-                for (int i = 0; i < size; i++) {
-                    buffer[i] *= scale;
-                }
-                // write origin data into file
-                /**
-                byte[] innerBuffer = new byte[buffer.length * 2];
-                //turn buffer into Little_endian byte array
-                ByteBuffer.wrap(innerBuffer).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-                        .put(buffer);
-                try {
-                    dataOutputStream.write(innerBuffer);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Log.d(TAG, "unable to write data into file");
-                }**/
-                executors.execute(new FilterTask(buffer));
-
-            }
             audioRecord.release();
             audioRecord = null;
             mHandler.postDelayed(new ClearTask(), 200);
@@ -382,7 +379,13 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
                 e.printStackTrace();
             }
 
+
+
         }
+    }
+
+    private  synchronized short[] myRemoveFirst() {
+        return PlayBuffer.removeFirst();
     }
 
     /**
@@ -395,28 +398,88 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
         short[] data;
 
+
         FilterTask(short[] dat) {
             data = dat.clone();
         }
 
         @Override
         public void run() {
+
             Log.d(TAG, "filter task start");
             short[] filterData = new short[data.length];
             synchronized (AudioRecorder.class) {
+                short[] left = new short[data.length / 2];
+                short[] right = new short[data.length / 2];
+                for(int i=0;i<data.length/2;i++) {
+                    left[i] = data[2*i];
+                    right[i] = data[2 * i + 1];
+                }
                 //digital filter code
-                for (int i = 0; i < data.length; i++) {
+                for (int i = 0; i < data.length/2; i++) {
                     xn_k.remove(filter_order);
-                    xn_k.add(0, data[i]);
+                    xn_k.add(0, left[i]);
+                    xn_k1.remove(filter_order);
+                    xn_k1.add(0, right[i]);
                     double temp = 0;
+                    double temp1 = 0;
                     for (int j = 0; j < filter_order + 1; j++) {
                         temp += xn_k.get(j) * pythonB[j];
                         temp -= yn_k.get(j) * pythonA[j];
+                        temp1 += xn_k1.get(j) * pythonB[j];
+                        temp1 -= yn_k1.get(j) * pythonA[j];
                     }
                     yn_k.remove(filter_order);
                     yn_k.add(1, temp);
-                    filterData[i] = (short) temp;
+                    yn_k1.remove(filter_order);
+                    yn_k1.add(1, temp1);
+                    //filterData[i] =0;
+                    if (temp > Short.MAX_VALUE || temp < Short.MIN_VALUE) {
+                        if (temp > Short.MAX_VALUE) {
+                            filterData[2 * i] = Short.MAX_VALUE;
+                        }
+
+                        else{
+                            filterData[2 * i] = Short.MIN_VALUE; }
+
+                    } else {
+                        filterData[2*i] = (short) temp;
+                    }
+                    if (temp1 > Short.MAX_VALUE || temp1 < Short.MIN_VALUE) {
+                        if (temp1 > Short.MAX_VALUE) {
+                            filterData[2 * i] = Short.MAX_VALUE;
+                        }
+
+                        else{
+                            filterData[2 * i+1] = Short.MIN_VALUE; }
+
+                    } else {
+                        filterData[2*i+1] = (short) temp1;
+                    }
+
+
+                    // Log.e(TAG, "run: go"+"   "+i +"    "+temp+"     "+filterData[i]);
                 }
+
+
+          /*      for (int i=0;i<left.length/(8);i++) {
+                    resampleData[index++] = left[i*(8)];
+                    if (8000 == index) {
+                        if (isFirst) {
+                            isFirst = false;
+                        } else {
+                            reSampledDataList.add(resampleData);
+                        }
+                        if (reSampledDataList.size() > 2) {
+                            reSampledDataList.removeFirst();
+                        }
+                        resampleData = new short[8000];
+                        index = 0;
+                    }
+                }
+*/
+
+
                 try {
                     mHandler.obtainMessage(AUDIO_RECORD_DATA_COMMING, filterData).sendToTarget();
                     byte[] innerBuffer = new byte[data.length * 2];
@@ -433,6 +496,372 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
                 }
             }
         }
+    }
+
+    /**
+     * calculate shannon energy , pink detection,
+     */
+    private class HeartSoundProcessTask implements Runnable {
+
+        @Override
+        public void run() {
+
+            short[] data;
+            while (getState() == RECORDING_STATE) {
+                if (reSampledDataList.size() > 1) {
+                    data=reSampledDataList.removeFirst();
+                    float[] normData = normalize(shortArrayToFloat(data, data.length));
+                    float heartRate = heartCaculate(normData);
+                    Log.e(TAG, "run: heartrate"+heartRate );
+                 int   heartRate1 = (int) heartRate;
+                    mainHandler.obtainMessage(PERIOD_GOT, heartRate1).sendToTarget();
+                  //  mainHandler.obtainMessage(PERIOD_GOT, heartRate, -1).sendToTarget();
+                }
+
+            }
+
+       /*
+
+            short[] data;
+            while (getState() == RECORDING_STATE) {
+                if (reSampledDataList.size() > 2) {
+                    Log.i(TAG, "begin to calculate");
+                    reSampledDataList.removeFirst();
+                    data = reSampledDataList.removeFirst();
+                    float[] normData = normalize(shortArrayToFloat(data, data.length));
+                    float[] shannonEnergy = enframe(normData);
+                    Log.i(TAG, "shannon energy " + Arrays.toString(shannonEnergy));
+                    List<Integer> pinks = pinkDetect(shannonEnergy, shannonEnergy.length);
+                    if (pinks.size() == 0) {
+                        pink_detcted = 0;
+                    } else {
+                        pink_detcted += pinks.size();
+                        //if pinks is bigger than 10, begin to calculate period
+                        if (pink_detcted > PINK_THRESHOULD) {
+                            mainHandler.obtainMessage(BEGIN_CALCULATE_HEART_RATE).sendToTarget();
+
+                            FutureTask<Integer> task = new FutureTask<Integer>(new PerioudCalTask(normData, sampleRate));
+                            if (num > 0) {
+                                executors.submit(task);
+                                num--;
+                            }
+
+
+                            //frames a heart sound period has
+                            int period_frames;
+                            try {
+                                Log.e(TAG, "run: start");
+                                period_frames = task.get();
+
+                                int heartRate = period_frames;
+                                float lowLimit = 0.25f * period_frames;
+                                float highLimit = 0.6f * period_frames;
+                                int[] S1S2 = getS1S2(pinks, lowLimit, highLimit);
+                                short[] periodData = getPerioudData(data, shannonEnergy, S1S2[0], period_frames);
+                                mainHandler.obtainMessage(PERIOD_GOT, heartRate, -1, periodData).sendToTarget();
+                                break;
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            } catch (ExecutionException e) {
+                                e.printStackTrace();
+                            }
+
+                        }
+                    }
+                }
+            }*/
+        }
+    }
+
+
+    private float heartCaculate(float[] data) {
+
+        data = preHandle(data,0.1F );
+        data = selfCorr(data);
+
+        data = nonLinear(data,  0.8F);
+
+        float[] winData = addWin(data);
+        int[] index = findIndex(winData);
+        float[] testdata = new float[(index[1] - index[0]) * 10];
+        Log.e(TAG, "heartCaculate: "+index[0] +  "   "+index[1]);
+        for (int i = 0; i < testdata.length; i++) {
+            testdata[i] = data[index[0]*10+i ];
+        }
+        int secondM = secondExtreme(testdata);
+        secondM = index[0] * 10 + secondM;
+
+
+        heartrate=60*2205/secondM;
+
+        return heartrate;
+
+    }
+
+    public int secondExtreme(float[] data) {
+        if (data.length == 0) {
+            return 1;
+        }
+        float door = Math.abs(data[0]);
+
+        int index = 1;
+        int length = data.length;
+        for (int i = 0; i < length; i++) {
+
+            if (Math.abs(data[i]) > door) {
+                door = Math.abs(data[i]);
+                index=i+1;
+            }
+        }
+
+        return index;
+    }
+
+    private float[] preHandle(float[] data, float val) {
+        float door = max(data);
+        val = door*val;
+        for (int i = 0; i < data.length; i++) {
+            if (data[i] < val) {
+                data[i] = 0;
+            }
+        }
+
+        return data;
+    }
+
+    private float[] nonLinear(float[] data, float val) {
+        float door = 0;
+        float[] t1 = new float[data.length / 3];
+        float[] t2 = new float[data.length / 3];
+        for (int i=0;i<data.length/3;i++) {
+            t1[i] = data[i + 200];
+            t2[i] = data[i + data.length / 3 * 2];
+        }
+        if (max(t1) > max(t2)) {
+            door = max(t2);
+        } else {
+            door = max(t1);
+        }
+
+        val = door * val;
+        for (int i = 0; i < data.length; i++) {
+            if (data[i] < val) {
+                data[i] = 0;
+            } else {
+                data[i] = data[i];
+            }
+
+        }
+
+        return data;
+    }
+
+    private float[] selfCorr(float[] data) {
+        float[] result = new float[data.length];
+        for (int i = 0; i < data.length; i++) {
+            result[i] = 0;
+            for (int a = 0; a < data.length-i; a++) {
+
+                    result[i] += data[a] * data[a + i];
+
+            }
+            result[i] = result[i] / (data.length - i);
+
+        }
+
+        return result;
+    }
+
+    private float[] addWin(float[] data) {
+        int len = data.length / 10;
+        float[] result = new float[len];
+        for (int i = 0; i < len; i++) {
+            result[i]=0;
+            for (int a = 0; a < 10; a++) {
+                result[i] += data[i*10 + a];
+            }
+            Log.e(TAG, "preHandle: "+i+"   "+result[i] );
+        }
+        return result;
+    }
+
+    private int[] findIndex(float[] data) {
+        int num = 0;
+        int[] start = new int[2];
+        int[] end = new int[2];
+        int length = data.length;
+        float val = data[0] * 2 / 10;
+      //  Log.e(TAG, "findIndex:val "+val );
+
+        for (int i = 0; i < length; i++) {
+         //   Log.e(TAG, "findIndex: data"+i+"  " +data[i]);
+
+            if (data[i] > val  && start[num] == 0&& end[num] == 0) {
+
+                start[num] = i+1;
+                i=i+20;
+            } else {
+                if (data[i] < val&&start[num]!=0) {
+
+                    end[num] = i;
+                    num++;
+                    if (num == 2) {
+                        break;
+                    }
+                }
+            }
+        }
+        int[] result = new int[2];
+        if (start[1]==0) {
+         int[]   result1={1,2};
+            return result1;
+        }
+        result[0] = start[1]-1;
+        result[1] = end[1]+20;
+        return result;
+    }
+
+    /**
+     * 计算数组的绝对值最大值
+     *
+     * @param data 数组
+     * @return
+     */
+    public float max(float[] data) {
+        float max = Math.abs(data[0]);
+
+        int length = data.length;
+        for (int i = 0; i < length; i++) {
+
+            if (Math.abs(data[i]) > max) {
+                max = Math.abs(data[i]);
+            }
+        }
+
+        return max;
+    }
+
+    /**
+     * 对数值进行归一化处理
+     *
+     * @param data
+     * @return 归一化的数据
+     */
+    public float[] normalize(float[] data) {
+        float[] norm = new float[data.length];
+        float max = max(data);
+        for (int i = 0; i < data.length; i++) {
+            norm[i] = data[i] / max;
+        }
+        // log.info(TAG,Arrays.toString(norm));
+        return norm;
+    }
+
+    public float[] shortArrayToFloat(short[] shorts, int size) {
+        float[] floats = new float[size];
+        for (int i = 0; i < size; i++) {
+            floats[i] = shorts[i];
+        }
+        return floats;
+    }
+
+
+    /**
+     * 对信号分帧，每一帧长0.2s，帧移0.1s 这里没有进行加窗处理 计算每一帧的平均香农能量 e = -x^2 * log(x^2)
+     *
+     * @param origin 原始信号
+     * @return 每一帧的平均香农能量
+     */
+    public float[] enframe(float[] origin) {
+        int frameLength = (int) (0.02f * 2000);
+        int window = frameLength / 2;
+        int frameNum = (int) Math.floor((origin.length - frameLength + window)
+                / window);
+        float[] energy = new float[frameNum];
+        for (int i = 0; i < frameNum; i++) {
+            float temp = 0, temp2;
+            for (int j = 0; j < frameLength; j++) {
+                // 由于数字进行了归一化处理，所以需要对数据进行适当放大，这里取16384*8
+                temp2 = (float) Math.pow(origin[i * window + j], 2);
+                if (temp2 <= 0) temp2 = Float.MIN_VALUE;
+                temp -= 16384 * 8 * Math.pow(origin[i * window + j], 2)
+                        * Math.log(temp2);
+//                temp += Math.abs(origin[i * window + j]);
+            }
+            temp /= frameLength;
+            energy[i] = temp;
+        }
+        return energy;
+    }
+
+    /**
+     * pink detect
+     * energy should be bigger than 5000
+     *
+     * @param energy shannon energy for every frame
+     * @param length frame number
+     * @return all the pink saticisify
+     */
+    public List<Integer> pinkDetect(float[] energy, int length) {
+        List<Integer> result = new ArrayList<>();
+        for (int i = 1; i < length - 1; i++) {
+            if (energy[i] > 15000 && energy[i] > energy[i - 1] && energy[i] > energy[i + 1]) {
+                result.add(i + 1);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * get first S1 and S2 frame
+     *
+     * @param pinks
+     * @param lowLimit
+     * @param highLimit
+     * @return
+     */
+    public int[] getS1S2(List<Integer> pinks, float lowLimit, float highLimit) {
+        int[] S1S2 = new int[2];
+        int P0 = 0, P1;
+        for (int i = 1; i < pinks.size(); i++) {
+            P1 = i;
+            if (pinks.get(P1) - pinks.get(P0) > lowLimit && pinks.get(P1) - pinks.get(P0) < highLimit) {
+                S1S2[0] = pinks.get(P0);
+                S1S2[1] = pinks.get(P1);
+                break;
+            } else if (pinks.get(P1) - pinks.get(P0) > highLimit) {
+                P0 = P1;
+            }
+        }
+
+        return S1S2;
+    }
+
+    /**
+     * get a perioud data of heart sound
+     * calculate the start of HS by shannonEnergy and S1 Pink
+     * get a period
+     *
+     * @param data
+     * @param shannonEnergy
+     * @param s1Frame
+     * @param perioudFrame
+     * @return
+     */
+    public short[] getPerioudData(short[] data, float[] shannonEnergy, int s1Frame, int perioudFrame) {
+        int perioudCnt = perioudFrame * 20 + 20;
+
+        int low = s1Frame;
+        while (low > 0 && shannonEnergy[low] > 5000) {
+            low--;
+        }
+        int start = low * 20;
+        if (perioudCnt > data.length - start) {
+            perioudCnt = data.length - start;
+        }
+        short[] perioudData = new short[perioudCnt];
+        System.arraycopy(data, start, perioudData, 0, perioudCnt);
+        return perioudData;
     }
 
     /**
@@ -458,8 +887,8 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         }
 
         bufferSizeInBytes = frameSize * bytesPerFrame;
-        System.out.println("" +
-                "bufferSizeInBytes" + bufferSizeInBytes);
+
+        Log.e(TAG, "initAudioRecorder: bufferSizeInBytes"+bufferSizeInBytes );
         //setup audioRecorder
         audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_STEREO,
                 AudioFormat.ENCODING_PCM_16BIT, bufferSizeInBytes);
@@ -502,26 +931,33 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
      */
     public void startPlaying() {
         playWhenRecording = true;
+      /*  audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRate, AudioFormat.CHANNEL_OUT_STEREO,
+                AudioFormat.ENCODING_PCM_16BIT, bufferSizeInBytes, AudioTrack.MODE_STREAM);*/
         //播放线程
         if (getState() == RECORDING_STATE) {
+            Log.e(TAG, "startPlaying: play" );
             new Thread() {
                 @Override
                 public void run() {
                     audioTrack.play();
                     short[] outBuffer;
                     while (playWhenRecording) {
-                        if (PlayBuffer.size() != 0) {
+                        if (PlayBuffer.size()>1) {
+                            Log.e(TAG, "wj2    "+PlayBuffer.size() );
                             outBuffer = PlayBuffer.removeFirst();
-                            audioTrack.write(outBuffer, 0, outBuffer.length);
+                            short[] playData = outBuffer.clone();
+                            audioTrack.write(playData, 0, playData.length);
                         }
                     }
                     audioTrack.stop();
-                    //audioTrack.release();
-                    // audioTrack = null;
+                   /* audioTrack.release();
+                     audioTrack = null;*/
                 }
             }.start();
         }
     }
+
+
 
     /**
      * 录音的时候停止播放
@@ -536,9 +972,8 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
      * @throws IOException
      */
     private void finishEncode() throws IOException {
-//        dataOutputStream.close();
+        filterOutputStream.flush();
         filterOutputStream.close();
-//        PcmAudioHelper.modifyRiffSizeData(mRecordFile, totalSizeInBytes);
         PcmAudioHelper.modifyRiffSizeData(mFilterFile, totalSizeInBytes);
     }
 
@@ -556,7 +991,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
             return (int) ((System.currentTimeMillis() - mSampleStart) / 1000);
         } else if (mState == PLAYING_STATE || mState == PLAYING_PAUSED_STATE) {
             if (mWavFileReader != null) {
-                return (mCurrentPosition/sampleRate/2);
+                return (mCurrentPosition / sampleRate / 2);
             }
         }
 
@@ -581,15 +1016,21 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     public void renameSampleFile(String name) {
         if (mFilterFile != null && mState != RECORDING_STATE && mState != PLAYING_STATE) {
             if (!TextUtils.isEmpty(name)) {
+
                 String oldName = mFilterFile.getAbsolutePath();
+                Log.e(TAG, "renameSampleFile: " + oldName);
                 String extension = oldName.substring(oldName.lastIndexOf('.'));
                 File newFile = new File(mFilterFile.getParent() + "/" + name + extension);
-                File newFilterFile = new File(mFilterFile.getParent() + "/" + name + "filter" + extension);
+                //      File newFilterFile = new File(mFilterFile.getParent() + "/" + name + "filter" + extension);
                 if (!TextUtils.equals(oldName, newFile.getAbsolutePath())) {
+                    Log.e(TAG, "renameSampleFile: 1");
+
                     if (mFilterFile.renameTo(newFile)) {
-                        mFilterFile.renameTo(newFilterFile);
+                        Log.e(TAG, "renameSampleFile: 12");
+
+                        //      mFilterFile.renameTo(newFilterFile);
                         mFilterFile = newFile;
-                        mFilterFile = newFilterFile;
+                        //      mFilterFile = newFilterFile;
                     }
                 }
             }
@@ -646,6 +1087,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
      */
     public boolean isRecordExisted(String path) {
         if (!TextUtils.isEmpty(path)) {
+            Log.e(TAG, "isRecordExisted: 123");
             File file = new File(mSampleDir.getAbsolutePath() + "/" + path);
             return file.exists();
         }
@@ -659,46 +1101,46 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
      */
     public void startPlayback(float percentage) {
         //这里采用AudioTrack来播放录音,可以保持录音播放和曲线显示的同步
-            try {
-                mWavFileReader = new WavFileReader(mFilterFile);
-                mTotalSampleLength = mWavFileReader.getSampleCount();
-            } catch (IOException e) {
-                LogHelper.d(TAG, e, "unable to read file");
-            }
-            mCurrentPosition = (int) (percentage * totalSizeInBytes / 2);
-            setState(PLAYING_STATE);
-            new Thread(){
-                @Override
-                public void run() {
-                    int numberToRead = 0;
-                    short[] data;
-                    while (mCurrentPosition < mTotalSampleLength) {
-                        try {
-                            //file deleted
-                            if ( mState == PLAYING_PAUSED_STATE || mState == IDLE_STATE) {
-                                audioTrack.stop();
-                                break;
-                            }
-                            audioTrack.play();
-                            numberToRead = mTotalSampleLength - mCurrentPosition > mPlayBufferSize ?
-                                    mPlayBufferSize : 1;
-                            data = mWavFileReader.getSamplesAsShorts(mCurrentPosition, mCurrentPosition + numberToRead);
-
-                            mHandler.obtainMessage(AUDIO_RECORD_DATA_COMMING, data).sendToTarget();
-                            audioTrack.write(data, 0, numberToRead);
-                            mCurrentPosition += numberToRead;
-                        } catch (IOException e) {
-                            LogHelper.d(TAG, e, "exception happens when reading audio data");
+        try {
+            mWavFileReader = new WavFileReader(mFilterFile);
+            mTotalSampleLength = mWavFileReader.getSampleCount();
+        } catch (IOException e) {
+            LogHelper.d(TAG, e, "unable to read file");
+        }
+        mCurrentPosition = (int) (percentage * totalSizeInBytes / 2);
+        setState(PLAYING_STATE);
+        new Thread() {
+            @Override
+            public void run() {
+                int numberToRead = 0;
+                short[] data;
+                while (mCurrentPosition < mTotalSampleLength) {
+                    try {
+                        //file deleted
+                        if (mState == PLAYING_PAUSED_STATE || mState == IDLE_STATE) {
+                            audioTrack.stop();
+                            break;
                         }
-                    }
-                    //play finished,clear display and set mCurrentPosition = 0
-                    if(mState == PLAYING_STATE || mState == IDLE_STATE){
-                        mHandler.obtainMessage(AUDIO_PLAYER_FINISHED).sendToTarget();
-                    }
+                        audioTrack.play();
+                        numberToRead = mTotalSampleLength - mCurrentPosition > mPlayBufferSize ?
+                                mPlayBufferSize : 1;
+                        data = mWavFileReader.getSamplesAsShorts(mCurrentPosition, mCurrentPosition + numberToRead);
 
-
+                        mHandler.obtainMessage(AUDIO_RECORD_DATA_COMMING, data).sendToTarget();
+                        audioTrack.write(data, 0, numberToRead);
+                        mCurrentPosition += numberToRead;
+                    } catch (IOException e) {
+                        LogHelper.d(TAG, e, "exception happens when reading audio data");
+                    }
                 }
-            }.start();
+                //play finished,clear display and set mCurrentPosition = 0
+                if (mState == PLAYING_STATE || mState == IDLE_STATE) {
+                    mHandler.obtainMessage(AUDIO_PLAYER_FINISHED).sendToTarget();
+                }
+
+
+            }
+        }.start();
 
 /*
         if (getState() == PLAYING_PAUSED_STATE) {
@@ -737,13 +1179,14 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
             setState(PLAYING_STATE);
         }
 */
-        }
+    }
 
     public void pausePlayback() {
-        if(mWavFileReader == null){
+        if (mWavFileReader == null) {
             return;
         }
         setState(PLAYING_PAUSED_STATE);
+        chartView.stopDrawing();
         /*if (mPlayer == null) {
             return;
         }
@@ -753,7 +1196,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     }
 
     public void stopPlayback() {
-        if(mWavFileReader == null){
+        if (mWavFileReader == null) {
             return;
         }
         mWavFileReader = null;
@@ -786,20 +1229,18 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     }
 
     /**
-    @Override
-    public boolean onError(MediaPlayer mp, int what, int extra) {
-        stop();
-        setError(STORAGE_ACCESS_ERROR);
-        return true;
-    }
-
-    @Override
-    public void onCompletion(MediaPlayer mp) {
-        stop();
-    }
-**/
+     * @Override public boolean onError(MediaPlayer mp, int what, int extra) {
+     * stop();
+     * setError(STORAGE_ACCESS_ERROR);
+     * return true;
+     * }
+     * @Override public void onCompletion(MediaPlayer mp) {
+     * stop();
+     * }
+     **/
     public void onCompletetion() {
         stop();
+        chartView.cleanChart();
     }
 
     public void setState(int state) {
@@ -827,6 +1268,9 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         void onDataCaptured(short[] data);
     }
 
+    public void changeDir(String s) {
+       prefixF=s;
+    }
 
 
 }

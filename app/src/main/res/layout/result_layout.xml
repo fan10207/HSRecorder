@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+   >
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/result_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        android:elevation="4dp" />
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+    <TextView
+        android:text="一个完整的心音周期如下所示:"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"/>
+    <com.lippi.hsrecorder.utils.ChartView
+        android:id="@+id/hs_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2"
+        />
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="20dp"
+        android:background="@color/gray_light"
+        />
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        >
+        <TextView
+            android:id="@+id/id1"
+            android:text="你的心率为 "
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:layout_centerVertical="true"
+            android:textSize="25sp"/>
+        <TextView
+            android:id="@+id/heartRate_text"
+            android:text="70 "
+            android:layout_toRightOf="@id/id1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:textColor="@color/colorAccent"
+            android:textSize="30sp"/>
+        <TextView
+            android:text="次/秒"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toRightOf="@id/heartRate_text"
+            android:textColor="@color/black"
+            android:textSize="25sp"/>
+
+    </RelativeLayout>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="20dp"
+        android:background="@color/gray_light"
+        />
+    <TextView
+        android:text="心音识别结果:"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"/>
+   <RelativeLayout
+       android:layout_width="match_parent"
+       android:layout_height="0dp"
+       android:layout_weight="1">
+       <com.romainpiel.shimmer.ShimmerTextView
+           android:id="@+id/result_text"
+           android:text="心音正常，请继续努力保持身体健康哦"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:layout_centerVertical="true"
+           android:textColor="@color/black"
+           android:textSize="25sp"/>
+   </RelativeLayout>
+
+
+</LinearLayout>
+
+</LinearLayout>

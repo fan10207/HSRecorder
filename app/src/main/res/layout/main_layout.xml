@@ -1,24 +1,32 @@
-<android.support.v4.widget.DrawerLayout
-    android:id="@+id/drawer_layout"
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    >
-
+    android:layout_height="match_parent">
     <!-- The main content view -->
     <!-- main content must be the first element of DrawerLayout
     because it will be drawn first and drawer must be on top of it -->
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+        android:elevation="4dp" />
+
     <LinearLayout
         android:id="@+id/layout"
         android:layout_width="fill_parent"
         android:layout_height="0dip"
         android:layout_weight="1"
-        android:background="@drawable/background_03"
+        android:background="@mipmap/background_03"
         android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
             android:layout_gravity="center">
 
             <LinearLayout
@@ -34,19 +42,55 @@
                     android:text="文件名：" />
 
                 <LinearLayout
-                    android:layout_width="0px"
-                    android:layout_height="0px"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="5"
                     android:focusable="true"
                     android:focusableInTouchMode="true" />
 
                 <com.lippi.hsrecorder.utils.RecordNameEditText
                     android:id="@+id/file_name"
-                    android:layout_width="wrap_content"
-                    android:layout_height="25dip"
+                    android:layout_width="150dp"
+                    android:layout_height="match_parent"
                     android:background="#00000000"
                     android:selectAllOnFocus="true"
                     android:textColor="@color/black"
                     android:singleLine="true" />
+                <ImageButton
+                    android:id="@+id/edit_filename"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="2"
+                    android:background="@drawable/editfilename"
+
+                    />
+                <ImageButton
+                    android:id="@+id/ill"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/ill"
+                    android:layout_weight="2"/>
+                <ImageButton
+                    android:id="@+id/scan_bluetooth"
+                    android:layout_width="60dp"
+                    android:layout_height="24dp"
+                    android:background="@drawable/devices_scan" />
+
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="25dp"
+                    android:textColor="@color/black"
+                    android:text="心率：" />
+                <TextView
+                    android:text="--"
+                    android:id="@+id/heartRate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="25dp" />
             </LinearLayout>
         </LinearLayout>
 
@@ -137,7 +181,7 @@
             android:id="@+id/button_layout"
             android:layout_width="fill_parent"
             android:layout_height="80dp"
-            android:background="@drawable/key_background"
+            android:background="@mipmap/key_background"
             android:gravity="center"
             android:weightSum="2">
 
@@ -151,51 +195,51 @@
                     android:id="@+id/newButton"
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/btn_new" />
+                    android:background="@mipmap/new_pressed" />
 
 
                 <ImageButton
                     android:id="@+id/recordButton"
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/record_normal" />
+                    android:background="@mipmap/record_normal" />
 
                 <ImageButton
                     android:id="@+id/stopButton"
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/btn_stop"
+                    android:background="@mipmap/stop_normal"
                     android:visibility="gone" />
 
                 <ImageButton
                     android:id="@+id/playButton"
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/btn_play"
+                    android:background="@mipmap/play_pressed"
                     android:visibility="gone" />
 
                 <ImageButton
                     android:id="@+id/pauseButton"
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/btn_pause"
+                    android:background="@mipmap/pause_pressed"
                     android:visibility="gone" />
 
                 <ImageButton
                     android:id="@+id/deleteButton"
                     android:layout_width="60dp"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/btn_delete" />
+                    android:background="@mipmap/delete_normal" />
 
-                    <CheckBox
-                        android:id="@+id/record_play_switch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        style="@style/custom_checkbox_style"
-                        android:text="试听"
-                        android:textColor="@color/black"
-                        android:checked="false"
-                        />
+                <CheckBox
+                    android:id="@+id/record_play_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="@style/custom_checkbox_style"
+                    android:text="试听"
+                    android:textColor="@color/black"
+                    android:checked="false"
+                    />
 
             </LinearLayout>
 
@@ -203,17 +247,4 @@
 
     </LinearLayout>
 
-
-
-    <!-- The navigation drawer -->
-    <ListView
-        android:id="@+id/navdrawer"
-        android:layout_width="@dimen/navdrawer_width"
-        android:layout_height="match_parent"
-        android:layout_gravity="start"
-        android:background="#F0DAD2"
-        android:divider="@drawable/divider"
-        android:drawSelectorOnTop="false">
-    </ListView>
-
-</android.support.v4.widget.DrawerLayout>
+</LinearLayout>

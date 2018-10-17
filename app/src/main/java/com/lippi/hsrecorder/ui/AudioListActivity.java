@@ -10,6 +10,8 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -19,6 +21,7 @@ import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -34,10 +37,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import roboguice.RoboGuice;
+import roboguice.activity.RoboActionBarActivity;
+import roboguice.inject.InjectView;
+
 /**
  * Created by Lippi on 2014/12/28.
  */
-public class AudioListActivity extends Activity implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener {
+public class AudioListActivity extends RoboActionBarActivity implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener {
     private ListView audioListView;
     //录音文件列表
     private List<String> audioList;
@@ -63,10 +70,15 @@ public class AudioListActivity extends Activity implements MediaPlayer.OnComplet
     private Button deleteButton;
     //选中的数量
     private int checkNum;
+    @InjectView(R.id.audiolist_toolbar)
+    private Toolbar toolbar;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.audio_list);
+
+        setSupportActionBar(toolbar);
         select_all_layout = (LinearLayout) findViewById(R.id.line);
         seleletAllButton = (Button) findViewById(R.id.bt_selectall);
         disSelectAllButton = (Button) findViewById(R.id.bt_disselectall);
@@ -230,7 +242,7 @@ public class AudioListActivity extends Activity implements MediaPlayer.OnComplet
            if(convertView == null){
                holder = new ViewHolder();
                convertView = LayoutInflater.from(context).inflate(R.layout.audio_item, null);
-               holder.fileName = (TextView) convertView.findViewById(R.id.file_name);
+               holder.fileName = (TextView) convertView.findViewById(R.id.recordfile_name);
                holder.checkBox = (CheckBox) convertView.findViewById(R.id.file_check);
                holder.playButton = (ImageButton) convertView.findViewById(R.id.list_item_play);
                holder.pauseButton = (ImageButton) convertView.findViewById(R.id.list_item_pause);
@@ -306,7 +318,22 @@ public class AudioListActivity extends Activity implements MediaPlayer.OnComplet
        }
    }
 
-
+    public void renameSampleFile(String name) {
+        if (mSampleFile != null) {
+            if (!TextUtils.isEmpty(name)) {
+                audioList.remove(mSampleFile.getName());
+                String oldName = mSampleFile.getAbsolutePath();
+                String extension = oldName.substring(oldName.lastIndexOf('.'));
+                File newFile = new File(mSampleFile.getParent() + "/" + name + extension);
+                if (!TextUtils.equals(oldName, newFile.getAbsolutePath())) {
+                    if (mSampleFile.renameTo(newFile)) {
+                        mSampleFile = newFile;
+                        audioList.add(newFile.getName());
+                    }
+                }
+            }
+        }
+    }
     /**
      * 播放录音
      * @param percentage
@@ -373,6 +400,20 @@ public class AudioListActivity extends Activity implements MediaPlayer.OnComplet
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         switch (item.getItemId()){
+            case R.id.item_rename:
+
+                final EditText editText = new EditText(this);
+                editText.setText(mSampleFile.getName());
+                new AlertDialog.Builder(this).setTitle("请输入")
+                        .setView(editText).setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String new_name = editText.getText().toString();
+                        renameSampleFile(new_name);
+                        adapter.notifyDataSetChanged();
+                    }
+                }).setNegativeButton("取消", null).show();
+                return true;
             case R.id.item_delete_menu:
                  String fileName = mSampleFile.getName();
                  audioList.remove(fileName);

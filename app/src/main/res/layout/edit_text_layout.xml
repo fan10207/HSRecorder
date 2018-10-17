@@ -10,11 +10,11 @@
         whatever:emptyErrorString="@string/freq_cannot_be_empty"
         whatever:testErrorString="@string/your_input_is_ugly"
         android:textSize="25sp"
+        android:textColor="@color/colorPrimary"
         android:paddingTop="10dp"
         android:paddingBottom="10dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/text_input_normal"
 
         />
 </LinearLayout>

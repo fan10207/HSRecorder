@@ -3,7 +3,7 @@
     android:orientation="vertical"
     android:layout_width="200dp"
     android:layout_height="400dp"
-    android:background="@drawable/fullscreen_bg_gradient"
+    android:background="@mipmap/fullscreen_bg_gradient"
     >
 
 </LinearLayout>

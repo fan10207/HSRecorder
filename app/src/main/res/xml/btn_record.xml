@@ -19,10 +19,10 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:state_focused="true"
-        android:drawable="@drawable/record_normal" />
+        android:drawable="@mipmap/record_normal" />
     <item
         android:state_pressed="true"
-        android:drawable="@drawable/record_normal" />
+        android:drawable="@mipmap/record_normal" />
     <item
-        android:drawable="@drawable/record_normal" />
+        android:drawable="@mipmap/record_normal" />
 </selector>
