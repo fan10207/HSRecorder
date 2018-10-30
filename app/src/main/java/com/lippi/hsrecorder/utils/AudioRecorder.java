@@ -150,6 +150,8 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     int index = 0;
     //录音的缓冲区
     private short[] buffer;
+    private float[] databuffer;
+    private float[] databuffer1;
     // filter coefficient Ak
     private double[] pythonA;
     // filter coefficient Bk
@@ -241,6 +243,16 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     }
 
 
+    public  float[] updatefloat(float[] buf) {
+        /*if (buf == null || buf.length == 0)
+            return;*/
+        databuffer=new float[buf.length];
+        for(int i=0;i<=buf.length-1;i++){
+            databuffer[i]=buf[i];
+           // Log.e(TAG,"databuffer...."+databuffer[i]);
+        }
+        return databuffer;
+    }
 
 
 
@@ -308,10 +320,16 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
 
     public void startRecording(final String fileName) {
+        Log.e(TAG,"aaa start");
+
         stop();
         clearXnk();
         totalSizeInBytes=0;
-        recordingThread = new RecordingThread();
+        databuffer1=updatefloat(databuffer);
+        for(int i=0;i<=databuffer1.length-1;i++){
+            Log.e(TAG,"databuffer1...."+databuffer1[i]);
+        }
+        recordingThread = new RecordingThread(updatefloat(databuffer));
         if (getState() == RECORDING_STATE) return;
         Log.e(TAG, "start recording");
         try {
@@ -350,25 +368,38 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
      * this is the Recording Thread , thread read data from AudioRecord and transfer the data to FilterThread
      */
     public class RecordingThread extends Thread {
+        public float[] ceshi;
+        public RecordingThread(float[] ceshi){
+            this.ceshi=ceshi;
+        }
 
         @Override
         public void run() {
 
            while (AudioRecorder.this.getState() == RECORDING_STATE) {
-                /*int sizeInShort = audioRecord.read(buffer, 0, bufferSizeInBytes / 2);
+                int sizeInShort = audioRecord.read(buffer, 0, bufferSizeInBytes / 2);
+               Log.e(TAG,"sizeInShort"+sizeInShort);
                 //zoomIn and zoomOut the data
                 if (sizeInShort > 0) {
-                    for (int i = 0; i < sizeInShort; i++) {
+                   /* for (int i = 0; i < sizeInShort; i++) {
                         buffer[i] *= scale*0.9;
-                    }
-                }*/
+                        buffer[i]+=(short)i;
+                    }*/
+                   for(int i=0;i<ceshi.length;i++){
+                       buffer[i]=(short)ceshi[i];
+                   }
+                   Log.e(TAG,"buffercahngdu"+buffer.length);
+                   /*for(int i=0;i<buffer.length;i++){
+                       Log.e(TAG,"buffer"+buffer[i]);
 
-
+                   }*/
+                }
                 executors.execute(new FilterTask(buffer));
 
                 super.run();
 
             }
+
             audioRecord.stop();
             audioRecord.release();
             audioRecord = null;

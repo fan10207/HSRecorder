@@ -873,7 +873,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 
     public void handleMessage(Message msg) {
         {
-            Log.e(TAG, "aaa start" );
+           // Log.e(TAG, "aaa start" );
 
             //根据蓝牙传过来的数据进行处理
             switch (msg.what) {
@@ -881,27 +881,15 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                     float[] readBufOne = new float[msg.arg1];
                     float[] readBuf = (float[]) msg.obj;
                     int count = msg.arg1;
-                    Log.e(TAG, "arg1=..."+msg.arg1 );
+                   // Log.e(TAG, "arg1=..."+msg.arg1 );
 
                     for (int i = 0; i < count; i++) {
                        // readBuf[i] = readBuf[i];
-
-                       /* try {
-                            writerOne.append(readBuf[i] + "" + "\n");
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }*/
-
                         readBufOne[i] = readBuf[i]; //出现 数组越界？
-                        Log.e(TAG, "readbuf" + readBufOne[i]);
+                        //Log.e(TAG, "readbuf" + readBufOne[i]);
 
                     }
-                    Intent intent = new Intent();
-                    intent.setClass(MainActivity.this, AudioRecorder.class);
-                    Bundle bundle = new Bundle();
-                    bundle.putFloatArray("buffer", readBufOne);
-                    intent.putExtras(bundle);
-                    startActivity(intent);
+                    mAudioRecorder.updatefloat(readBufOne);
                     //mDataOneChart.updateFloats(readBufOne);
                     break;
 
