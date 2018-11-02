@@ -88,6 +88,7 @@ import java.util.HashSet;
 import roboguice.activity.RoboActionBarActivity;
 import roboguice.inject.InjectView;
 
+import static com.lippi.hsrecorder.utils.AudioRecorder.RECORDING_STATE;
 import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.D;
 import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.DEVICE_NAME;
 import static com.lippi.hsrecorder.utils.helper.bluetooth.AppFragment.MESSAGE_DEVICE_NAME;
@@ -116,7 +117,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     //播放进度条的时间格式
     private String mTimerFormat;
 
-    private int mSampleRate = 22050;
+    private int mSampleRate = 4000;
 
     private AudioRecorder mAudioRecorder;
 
@@ -683,7 +684,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                         mAudioRecorder.stop();
                         saveSample();
                         break;
-                    case AudioRecorder.RECORDING_STATE:
+                    case RECORDING_STATE:
                         mAudioRecorder.clear();
                         finish();
                         break;
@@ -771,7 +772,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 
     @Override
     protected void onPause() {
-        if (mAudioRecorder.getState() != AudioRecorder.RECORDING_STATE) {
+        if (mAudioRecorder.getState() != RECORDING_STATE) {
             mAudioRecorder.stop();
             saveSample();
             mFileNameEditText.clearFocus();
@@ -839,7 +840,9 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 //                updateUI();
                 break;
             case R.id.playButton:
+                Log.e(TAG,"abcde1");
                 mAudioRecorder.startPlayback(mAudioRecorder.playProgress());
+                Log.e(TAG,"abcde2");
                 break;
             case R.id.pauseButton:
                 mAudioRecorder.pausePlayback();
@@ -878,18 +881,20 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
             //根据蓝牙传过来的数据进行处理
             switch (msg.what) {
                 case MESSAGE_READ:
-                    float[] readBufOne = new float[msg.arg1];
+                    short[] readBufOne = new short[msg.arg1];
                     float[] readBuf = (float[]) msg.obj;
                     int count = msg.arg1;
                    // Log.e(TAG, "arg1=..."+msg.arg1 );
 
                     for (int i = 0; i < count; i++) {
                        // readBuf[i] = readBuf[i];
-                        readBufOne[i] = readBuf[i]; //出现 数组越界？
+                        readBufOne[i] = (short)readBuf[i]; //出现 数组越界？
                         //Log.e(TAG, "readbuf" + readBufOne[i]);
 
                     }
-                    mAudioRecorder.updatefloat(readBufOne);
+                    //chartView.updateChart(readBufOne);
+                    if(mAudioRecorder.getState()==RECORDING_STATE){
+                     mAudioRecorder.updatefloat(readBufOne);}
                     //mDataOneChart.updateFloats(readBufOne);
                     break;
 
@@ -1080,10 +1085,12 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 
 
     private void startRecording() {
+
         if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
             mSampleInterrupted = true;
             mErrorUiMessage = getResources().getString(R.string.insert_sd_card);
             updateUI();
+
         } else {
             stopAudioPlayback();
             //处理用户偏好设置
@@ -1168,7 +1175,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
     private void updateTimerView() {
         int state = mAudioRecorder.getState();
 
-        boolean ongoing = (state == AudioRecorder.RECORDING_STATE || state == AudioRecorder.PLAYING_STATE);
+        boolean ongoing = (state == RECORDING_STATE || state == AudioRecorder.PLAYING_STATE);
 
         long time = mAudioRecorder.progress();
         String timeStr = String.format(mTimerFormat, time / 60, time % 60);
@@ -1234,7 +1241,6 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                     mPauseButton.setVisibility(View.GONE);
                     mDeleteButton.setEnabled(false);
                     mRecordButton.requestFocus();
-
                     mSeekBarLayout.setVisibility(View.GONE);
                 } else {
                     mNewButton.setEnabled(true);
@@ -1269,7 +1275,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                 }
 
                 break;
-            case AudioRecorder.RECORDING_STATE:
+            case RECORDING_STATE:
                 mNewButton.setEnabled(false);
                 mNewButton.setVisibility(View.VISIBLE);
                 mRecordButton.setVisibility(View.GONE);
@@ -1290,6 +1296,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                 mRecordButton.setVisibility(View.GONE);
                 mStopButton.setVisibility(View.GONE);
                 mPlayButton.setVisibility(View.VISIBLE);
+                Log.e(TAG,"abcde11");
                 mPlayButton.setEnabled(true);
                 mPlayButton.requestFocus();
                 mPauseButton.setVisibility(View.GONE);
@@ -1310,6 +1317,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                 mStopButton.setVisibility(View.GONE);
                 mPlayButton.setVisibility(View.GONE);
                 mPauseButton.setVisibility(View.VISIBLE);
+                Log.e(TAG,"abcde12");
                 mDeleteButton.setEnabled(false);
                 mPauseButton.requestFocus();
 
@@ -1336,7 +1344,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 
     @Override
     public void onStateChanged(int state) {
-        if (state == AudioRecorder.RECORDING_STATE) {
+        if (state == RECORDING_STATE) {
             mSampleInterrupted = false;
             mErrorUiMessage = null;
         } else if (state == AudioRecorder.PLAYING_STATE) {
@@ -1372,7 +1380,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        if (mAudioRecorder.getState() == AudioRecorder.RECORDING_STATE
+        if (mAudioRecorder.getState() == RECORDING_STATE
                 || mAudioRecorder.getState() == AudioRecorder.PLAYING_STATE) {
             return false;
         } else {
@@ -1406,7 +1414,7 @@ public class MainActivity extends RoboActionBarActivity implements View.OnClickL
                         mAudioRecorder.stop();
                         saveSample();
                         break;
-                    case AudioRecorder.RECORDING_STATE:
+                    case RECORDING_STATE:
 
                         mAudioRecorder.clear();
                         finish();

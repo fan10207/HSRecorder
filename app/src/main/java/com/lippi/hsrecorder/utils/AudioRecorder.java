@@ -150,8 +150,8 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     int index = 0;
     //录音的缓冲区
     private short[] buffer;
-    private float[] databuffer;
-    private float[] databuffer1;
+    private short[] databuffer;
+    private short[] databuffer1;
     // filter coefficient Ak
     private double[] pythonA;
     // filter coefficient Bk
@@ -243,16 +243,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     }
 
 
-    public  float[] updatefloat(float[] buf) {
-        /*if (buf == null || buf.length == 0)
-            return;*/
-        databuffer=new float[buf.length];
-        for(int i=0;i<=buf.length-1;i++){
-            databuffer[i]=buf[i];
-           // Log.e(TAG,"databuffer...."+databuffer[i]);
-        }
-        return databuffer;
-    }
+
 
 
 
@@ -319,17 +310,47 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     }
 
 
+
+    public void updatefloat(short[] buf) {
+       /* while (AudioRecorder.this.getState() == RECORDING_STATE) {
+        if (buf == null || buf.length == 0)
+            return;
+            databuffer = new short[buf.length];
+            for (int i = 0; i <= buf.length - 1; i++) {
+                databuffer[i] = (short) buf[i];
+                Log.e(TAG, "databuffer...." + databuffer[i]);
+            }
+            //chartView.updateChart(databuffer);
+           // executors.execute(new FilterTask(databuffer));
+        }*/
+           int flag=0;
+            databuffer = new short[buf.length];
+            for (int i = 0; i <= buf.length - 1; i++) {
+                databuffer[i] = (short) buf[i];
+                // Log.e(TAG, "databuffer...." + databuffer[i]);
+            }
+
+            executors.execute(new FilterTask(databuffer));
+
+        /*mHandler.postDelayed(new ClearTask(), 200);
+        try {
+            finishEncode();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+*/
+    }
     public void startRecording(final String fileName) {
         Log.e(TAG,"aaa start");
 
         stop();
         clearXnk();
         totalSizeInBytes=0;
-        databuffer1=updatefloat(databuffer);
+        /*databuffer1=updatefloat(databuffer);
         for(int i=0;i<=databuffer1.length-1;i++){
             Log.e(TAG,"databuffer1...."+databuffer1[i]);
-        }
-        recordingThread = new RecordingThread(updatefloat(databuffer));
+        }*/
+        //recordingThread = new RecordingThread();
         if (getState() == RECORDING_STATE) return;
         Log.e(TAG, "start recording");
         try {
@@ -348,11 +369,12 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
             e.printStackTrace();
         }
 
-        audioRecord.startRecording();
+        //audioRecord.startRecording();
         //executors.execute(new HeartSoundProcessTask());
         setState(RECORDING_STATE);
+
         mSampleStart = System.currentTimeMillis();
-        recordingThread.start();
+       // recordingThread.start();
 
 
         //开始播放
@@ -362,17 +384,15 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     }
 
 
-
-
     /**
      * this is the Recording Thread , thread read data from AudioRecord and transfer the data to FilterThread
      */
     public class RecordingThread extends Thread {
-        public float[] ceshi;
-        public RecordingThread(float[] ceshi){
+        /*public short[] ceshi;
+        public RecordingThread(short[] ceshi){
             this.ceshi=ceshi;
         }
-
+*/
         @Override
         public void run() {
 
@@ -381,14 +401,14 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
                Log.e(TAG,"sizeInShort"+sizeInShort);
                 //zoomIn and zoomOut the data
                 if (sizeInShort > 0) {
-                   /* for (int i = 0; i < sizeInShort; i++) {
+                    for (int i = 0; i < sizeInShort; i++) {
                         buffer[i] *= scale*0.9;
                         buffer[i]+=(short)i;
-                    }*/
-                   for(int i=0;i<ceshi.length;i++){
+                    }
+                   /*for(int i=0;i<ceshi.length;i++){
                        buffer[i]=(short)ceshi[i];
                    }
-                   Log.e(TAG,"buffercahngdu"+buffer.length);
+                   Log.e(TAG,"buffercahngdu"+buffer.length);*/
                    /*for(int i=0;i<buffer.length;i++){
                        Log.e(TAG,"buffer"+buffer[i]);
 
@@ -399,16 +419,19 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
                 super.run();
 
             }
-
+            Log.e(TAG,"abcde4");
             audioRecord.stop();
             audioRecord.release();
             audioRecord = null;
-            mHandler.postDelayed(new ClearTask(), 200);
+            Log.e(TAG,"abcde5");
+           /* mHandler.postDelayed(new ClearTask(), 200);
+            Log.e(TAG,"abcde6");
             try {
                 finishEncode();
+                Log.e(TAG,"abcde7");
             } catch (IOException e) {
                 e.printStackTrace();
-            }
+            }*/
 
 
 
@@ -948,6 +971,13 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         Log.d(TAG, "stop recording");
         if (getState() == RECORDING_STATE) {
             setState(RECORDING_STOPPED);
+            mHandler.postDelayed(new ClearTask(), 200);
+        try {
+            finishEncode();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Log.e(TAG,"abcde3");
             recordingThread = null;
             mSampleLength = (int) ((System.currentTimeMillis() - mSampleStart) / 1000);
             if (mSampleLength == 0) {
@@ -1005,6 +1035,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
     private void finishEncode() throws IOException {
         filterOutputStream.flush();
         filterOutputStream.close();
+        Log.e(TAG,"abcde8");
         PcmAudioHelper.modifyRiffSizeData(mFilterFile, totalSizeInBytes);
     }
 
@@ -1138,13 +1169,16 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         } catch (IOException e) {
             LogHelper.d(TAG, e, "unable to read file");
         }
+        Log.e(TAG,"abcde9");
         mCurrentPosition = (int) (percentage * totalSizeInBytes / 2);
         setState(PLAYING_STATE);
+        Log.e(TAG,"abcde10");
         new Thread() {
             @Override
             public void run() {
                 int numberToRead = 0;
                 short[] data;
+                Log.e(TAG,"abcde13");
                 while (mCurrentPosition < mTotalSampleLength) {
                     try {
                         //file deleted
@@ -1159,6 +1193,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
                         mHandler.obtainMessage(AUDIO_RECORD_DATA_COMMING, data).sendToTarget();
                         audioTrack.write(data, 0, numberToRead);
+                        Log.e(TAG,"abcde14");
                         mCurrentPosition += numberToRead;
                     } catch (IOException e) {
                         LogHelper.d(TAG, e, "exception happens when reading audio data");

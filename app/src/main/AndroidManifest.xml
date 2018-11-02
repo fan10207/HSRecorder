@@ -54,10 +54,6 @@
             android:label="识别结果">
 
         </activity>
-
-        <activity android:name="com.lippi.hsrecorder.utils.AudioRecorder"
-           >
-        </activity>
         <activity
             android:name="com.lippi.hsrecorder.utils.helper.bluetooth.DeviceListActivity"
             android:configChanges="orientation|keyboardHidden"
