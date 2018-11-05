@@ -71,7 +71,8 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
 
     //设置AudioRecorder每隔FrameCount帧就通知线程有数据可读
-    private static final int FRAME_COUNT = 640;
+    //audiorecorder一次读取640，而使用蓝牙一次448
+    private static final int FRAME_COUNT = 448;
     public static final int BEGIN_CALCULATE_HEART_RATE = 1001;
 
     private int sampleRate;
@@ -103,7 +104,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
 
     private int mTotalSampleLength;
 
-    private int mPlayBufferSize = 1024;
+    private int mPlayBufferSize = 448;
 
     //the total size of the recorder, you have to modify the size in the header of the wav file
     private int totalSizeInBytes = 0;
@@ -324,12 +325,15 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
            // executors.execute(new FilterTask(databuffer));
         }*/
            int flag=0;
-            databuffer = new short[buf.length];
+            databuffer = new short[buf.length*2];
             for (int i = 0; i <= buf.length - 1; i++) {
-                databuffer[i] = (short) buf[i];
-                // Log.e(TAG, "databuffer...." + databuffer[i]);
+                databuffer[2*i] = (short) (buf[i]);
+                databuffer[2*i+1] = (short) (buf[i]);
+                 Log.e(TAG, "databuffer...." + databuffer[i]);
             }
-
+        for (int i = 0; i <=  databuffer.length - 1; i++) {
+            //Log.e(TAG, "databuffer...." + databuffer[i]);
+        }
             executors.execute(new FilterTask(databuffer));
 
         /*mHandler.postDelayed(new ClearTask(), 200);
@@ -931,7 +935,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
         //使用PCM_16bit编码
         int bytesPerFrame = 2;
         //get the frame count of the given config
-        int frameSize = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_STEREO,
+        int frameSize = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_STEREO,
                 AudioFormat.ENCODING_PCM_16BIT) / bytesPerFrame;
         System.out.println("frameSize" + frameSize);
 
@@ -1188,7 +1192,7 @@ public class AudioRecorder /*implements MediaPlayer.OnCompletionListener, MediaP
                         }
                         audioTrack.play();
                         numberToRead = mTotalSampleLength - mCurrentPosition > mPlayBufferSize ?
-                                mPlayBufferSize : 1;
+                                mPlayBufferSize : mTotalSampleLength - mCurrentPosition;
                         data = mWavFileReader.getSamplesAsShorts(mCurrentPosition, mCurrentPosition + numberToRead);
 
                         mHandler.obtainMessage(AUDIO_RECORD_DATA_COMMING, data).sendToTarget();

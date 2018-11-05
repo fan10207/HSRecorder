@@ -91,8 +91,8 @@ public class ChartView extends SurfaceView implements AudioRecorder.OnDataCaptur
 
     private void initChartView() {
         mPoints = new float[POINT_NUM * 4];
-        mScale = mSampleRate * channels * numSeconds / POINT_NUM;
-        //mScale =1;
+        //mScale = mSampleRate * channels * numSeconds / POINT_NUM;
+        mScale =2;
                 Log.e("`123", "initChartView: "+mScale );
         mForePaint.setStrokeWidth(2f);
         p.setStrokeWidth(5f);
